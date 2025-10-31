@@ -51,6 +51,8 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- NOTE: H2 removed for docker/production profile. Use Postgres in docker-compose. -->
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

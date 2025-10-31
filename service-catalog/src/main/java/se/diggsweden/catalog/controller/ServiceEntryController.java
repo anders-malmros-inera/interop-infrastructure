@@ -5,6 +5,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import se.diggsweden.catalog.dto.ServiceEntryDto;
+import se.diggsweden.catalog.dto.ServiceEndpointDto;
 import se.diggsweden.catalog.service.ServiceEntryService;
 
 import jakarta.validation.Valid;

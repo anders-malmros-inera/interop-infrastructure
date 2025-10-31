@@ -19,12 +19,15 @@ class ServiceEntryServiceTest {
     @Mock
     private ServiceEntryRepository repository;
 
+    @Mock
+    private se.diggsweden.catalog.repository.ServiceEndpointRepository endpointRepository;
+
     private ServiceEntryService service;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        service = new ServiceEntryService(repository);
+        service = new ServiceEntryService(repository, endpointRepository);
     }
 
     @Test

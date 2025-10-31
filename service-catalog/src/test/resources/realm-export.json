@@ -11,7 +11,11 @@
     }
   ],
   "roles": {
-    "realm": ["catalog.read","catalog.write","catalog.admin"]
+    "realm": [
+      { "name": "catalog.read" },
+      { "name": "catalog.write" },
+      { "name": "catalog.admin" }
+    ]
   },
   "users": [
     {

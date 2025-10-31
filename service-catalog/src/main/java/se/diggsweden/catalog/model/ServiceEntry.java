@@ -24,12 +24,12 @@ public class ServiceEntry {
 
     private String version;
 
+    private String serviceCode;
+
     @Column(length = 2000)
     private String description;
 
     private String owner;
-
-    private String contact;
 
     private String tags; // comma separated
 
@@ -64,6 +64,9 @@ public class ServiceEntry {
     public String getName() {
         return name;
     }
+    public void setName(String name) {
+        this.name = name;
+    }
 
     public String getStatus() {
         return lifecycleStatus != null ? lifecycleStatus.name() : null;
@@ -77,13 +80,6 @@ public class ServiceEntry {
         }
     }
 
-    public LifecycleStatus getLifecycleStatus() {
-        return lifecycleStatus;
-    }
-
-    public void setLifecycleStatus(LifecycleStatus lifecycleStatus) {
-        this.lifecycleStatus = lifecycleStatus;
-    }
 
     public String getClassification() {
         return classification;
@@ -145,13 +141,6 @@ public class ServiceEntry {
         this.owner = owner;
     }
 
-    public String getContact() {
-        return contact;
-    }
-
-    public void setContact(String contact) {
-        this.contact = contact;
-    }
 
     public String getTags() {
         return tags;
@@ -161,13 +150,17 @@ public class ServiceEntry {
         this.tags = tags;
     }
 
-    public String getStatus() {
-        return status;
+    public String getServiceCode() {
+        return serviceCode;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setServiceCode(String serviceCode) {
+        this.serviceCode = serviceCode;
     }
+    public String getVersion() {
+        return version;
+    }
+
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;

@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:21.1.1
@@ -32,6 +31,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/catalogdb
       SPRING_DATASOURCE_USERNAME: catalog
       SPRING_DATASOURCE_PASSWORD: catalogpass
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       - postgres
@@ -46,7 +46,12 @@ services:
       - ./:/workspace:rw
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
+      - SERVER_PORT=8081
       - MAVEN_OPTS=-Xmx1g
+      - TESTCONTAINERS_RYUK_DISABLED=true
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
+      - KEYCLOAK_URL=http://keycloak:8080
     depends_on:
       - postgres
       - keycloak

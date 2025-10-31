@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/catalogdb}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
+    username: ${SPRING_DATASOURCE_USERNAME:catalog}
+    password: ${SPRING_DATASOURCE_PASSWORD:catalogpass}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/catalog
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.springframework: INFO

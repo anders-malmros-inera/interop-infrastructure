@@ -21,12 +21,8 @@ public class ServiceEntryService {
     private final ServiceEntryRepository repository;
     private final ServiceEndpointRepository endpointRepository;
 
-    public ServiceEntryService(ServiceEntryRepository repository) {
-        this.repository = repository;
-        this.endpointRepository = null;
-    }
-
     // constructor used by Spring for injection
+    @org.springframework.beans.factory.annotation.Autowired
     public ServiceEntryService(ServiceEntryRepository repository, ServiceEndpointRepository endpointRepository) {
         this.repository = repository;
         this.endpointRepository = endpointRepository;
@@ -55,7 +51,16 @@ public class ServiceEntryService {
             existing.setVersion(dto.getVersion());
             existing.setDescription(dto.getDescription());
             existing.setOwner(dto.getOwner());
-            existing.setContact(dto.getContact());
+            // map contactInfo -> Contact embeddable
+            if (dto.getContactInfo() != null) {
+                se.diggsweden.catalog.model.Contact c = new se.diggsweden.catalog.model.Contact();
+                c.setContactName(dto.getContactInfo().getContactName());
+                c.setContactEmail(dto.getContactInfo().getContactEmail());
+                c.setContactPhone(dto.getContactInfo().getContactPhone());
+                existing.setContact(c);
+            } else {
+                existing.setContact(null);
+            }
             existing.setTags(dto.getTags());
             existing.setStatus(dto.getStatus());
             existing.setClassification(dto.getClassification());

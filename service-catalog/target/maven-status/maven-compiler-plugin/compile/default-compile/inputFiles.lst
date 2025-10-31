@@ -1,0 +1,12 @@
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/controller/ServiceEntryController.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/repository/ServiceEndpointRepository.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/dto/ServiceEntryDto.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/model/ServiceEntry.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/service/ServiceEntryService.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/config/SecurityConfig.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/model/ServiceEndpoint.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/ServiceCatalogApplication.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/dto/ContactDto.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/model/Contact.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/repository/ServiceEntryRepository.java
+/workspace/service-catalog/src/main/java/se/diggsweden/catalog/dto/ServiceEndpointDto.java
