@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Admin Runner - Integration tests</title>
+  <style>
+    body{font-family: Arial, sans-serif; margin: 20px}
+    #log{white-space: pre; background:#111; color:#0f0; padding:10px; height:400px; overflow:auto}
+    button{padding:10px 16px; font-size:16px}
+  </style>
+</head>
+<body>
+  <h1>Admin Runner</h1>
+  <p>Start integration tests for <code>service-catalog</code> (Testcontainers).</p>
+  <button id="btn">Start tests</button>
+  <p id="status">Idle</p>
+  <div id="log"></div>
+
+  <script>
+    const btn = document.getElementById('btn');
+    const log = document.getElementById('log');
+    const status = document.getElementById('status');
+
+    btn.addEventListener('click', async () => {
+      status.textContent = 'Starting...';
+      const res = await fetch('/run-tests', { method: 'POST' });
+      const txt = await res.text();
+      if (txt === 'ALREADY_RUNNING') { status.textContent = 'Already running'; return; }
+      status.textContent = 'Running';
+    });
+
+    const evt = new EventSource('/stream');
+    evt.onmessage = (e) => {
+      // simple running state stream
+      const data = e.data;
+      // detect event name 'state' or 'log' — modern browsers show only data in onmessage
+      // we'll treat a JSON line if present, but fallback to plain text
+      if (data === 'running' || data === 'idle' || data === 'started' || data === 'finished') {
+        status.textContent = data === 'running' || data === 'started' ? 'Running' : 'Idle';
+      } else {
+        log.textContent += data + '\n';
+      }
+      log.scrollTop = log.scrollHeight;
+    }
+  </script>
+</body>
+</html>

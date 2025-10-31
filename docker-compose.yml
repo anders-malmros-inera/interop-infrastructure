@@ -1,0 +1,55 @@
+version: '3.8'
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.1
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_IMPORT: "true"
+    command: ["start-dev","--http-enabled=true"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./service-catalog/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: catalog
+      POSTGRES_PASSWORD: catalogpass
+      POSTGRES_DB: catalogdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  service-catalog:
+    build:
+      context: ./service-catalog
+    ports:
+      - "9000:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/catalogdb
+      SPRING_DATASOURCE_USERNAME: catalog
+      SPRING_DATASOURCE_PASSWORD: catalogpass
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - postgres
+      - keycloak
+
+  admin-runner:
+    build:
+      context: ./admin-runner
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./:/workspace:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - MAVEN_OPTS=-Xmx1g
+    depends_on:
+      - postgres
+      - keycloak
+
+volumes:
+  pgdata:
