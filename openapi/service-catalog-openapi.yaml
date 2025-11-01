@@ -1,0 +1,251 @@
+openapi: 3.0.3
+info:
+  title: Tjänstekatalog API
+  version: 1.0.0
+  description: >
+    API för en central tjänstekatalog som möjliggör sökning och administration av tjänsteadresser och API:er.
+    Stödjer logisk adressering, federering och distribution. Åtkomst styrs via organisationstillhörighet och OAuth2 scopes.
+
+servers:
+  - url: https://servicecatalog.inera.se/services/v1
+    description: Produktion
+
+security:
+  - OAuth2:
+      - service.read
+      - servicedefinition.read
+      - servicedefinition.post
+      - servicedefinition.put
+      - servicedefinition.delete
+      - centraladmin.read
+      - centraladmin.write
+      - localadmin.read
+      - localadmin.write
+
+tags:
+  - name: Sökning
+    description: Sökning och uppslag av tjänsteadresser/API:er
+  - name: Administration
+    description: Skapa och underhåll katalogposter
+  - name: Synkning
+    description: Grundladdning och synkning av katalogen
+
+paths:
+  /apis:
+    get:
+      tags: [Sökning]
+      summary: Sök tjänsteadresser/API:er
+      description: >
+        Sök anslutningsadresser för API:er baserat på logisk adress och interoperabilitetsstandard.
+      parameters:
+        - name: logicalAddress
+          in: query
+          required: true
+          schema:
+            type: string
+            example: SE1611
+          description: Organisatorisk/logisk identifierare
+        - name: interoperabilitySpecificationId
+          in: query
+          required: true
+          schema:
+            type: string
+            example: remissV1
+          description: Identifierare för interoperabilitetsspecifikation
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, inactive]
+          description: Status på tjänsten
+      responses:
+        '200':
+          description: Lista över API-instansers anslutningsadresser
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiInstance'
+        '401':
+          description: Ej auktoriserad
+        '403':
+          description: Saknar rätt organisationstillhörighet
+    post:
+      tags: [Administration]
+      summary: Skapa API-post
+      description: Skapa ny API-instans i katalogen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiInstance'
+      responses:
+        '201':
+          description: API-instans skapad
+        '400':
+          description: Felaktig inmatning
+        '401':
+          description: Ej auktoriserad
+
+  /apis/{id}:
+    get:
+      tags: [Sökning]
+      summary: Hämta detaljer för API-instans
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: API-instansens id
+      responses:
+        '200':
+          description: API-instansens detaljer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiInstance'
+        '404':
+          description: Hittas ej
+    put:
+      tags: [Administration]
+      summary: Uppdatera API-post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiInstance'
+      responses:
+        '200':
+          description: Uppdaterad
+        '400':
+          description: Felaktig inmatning
+        '401':
+          description: Ej auktoriserad
+    delete:
+      tags: [Administration]
+      summary: Ta bort API-post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Borttagen
+        '401':
+          description: Ej auktoriserad
+
+  /sync/apis:
+    get:
+      tags: [Synkning]
+      summary: Grundladdning/synkning av katalogdata
+      description: Hämta hela eller utvalda delar av katalogen för lokal synkning
+      parameters:
+        - name: updatedSince
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Endast poster uppdaterade efter detta datum
+        - name: organizationId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Begränsa till viss organisation
+        - name: interoperabilitySpecificationId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Begränsa till viss interoperabilitetsspecifikation
+      responses:
+        '200':
+          description: Lista över API-instansers anslutningsadresser
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiInstance'
+
+components:
+  schemas:
+    ApiInstance:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unikt id för API-instansen
+        logicalAddress:
+          type: string
+          description: Logisk adress/organisationsid
+        organization:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Organisationsid (t.ex. HSA-id, IVO-id)
+            name:
+              type: string
+              description: Organisationsnamn
+        interoperabilitySpecificationId:
+          type: string
+          description: Id för interoperabilitetsspecifikation
+        apiStandard:
+          type: string
+          description: API-standard, t.ex. FHIR, REST, SOAP
+        url:
+          type: string
+          description: Teknisk anslutningsadress (endpoint)
+        status:
+          type: string
+          enum: [active, inactive]
+        accessModel:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [oauth2, mtls, none]
+            metadataUrl:
+              type: string
+              description: URL till åtkomstintygsmetadatatjänst
+        signature:
+          type: string
+          description: Signatur för att säkerställa oförvansklighet
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://servicecatalog.inera.se/oauth2/token
+          scopes:
+            service.read: Sök och läs tjänsteadresser
+            servicedefinition.read: Läs tjänstedefinition
+            servicedefinition.post: Skapa tjänstedefinition
+            servicedefinition.put: Uppdatera tjänstedefinition
+            servicedefinition.delete: Radera tjänstedefinition
+            centraladmin.read: Läs central administration
+            centraladmin.write: Skriv central administration
+            localadmin.read: Läs lokal administration
+            localadmin.write: Skriv lokal administration
