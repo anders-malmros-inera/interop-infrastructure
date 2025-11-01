@@ -1,0 +1,37 @@
+services:
+  db:
+    build: ./service-catalog-db
+    image: service-catalog-db:latest
+    environment:
+      POSTGRES_DB: service_catalog
+      POSTGRES_USER: svcuser
+      POSTGRES_PASSWORD: svcpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  api:
+    build: ./perl-api
+    image: perl-service-catalog:latest
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: service_catalog
+      DB_USER: svcuser
+      DB_PASS: svcpass
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  openapi:
+    build: ./openapi
+    image: interop-openapi:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  db_data:

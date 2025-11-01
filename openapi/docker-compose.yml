@@ -1,0 +1,8 @@
+services:
+  openapi:
+    build: .
+    image: interop-openapi:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    container_name: interop-openapi
