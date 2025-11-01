@@ -19,7 +19,8 @@ The top-level `docker-compose.yml` (in this folder) starts the following service
     - Note: this service uses a fixed container name `perl-api-1` in the compose file for easier targeting in local dev.
 - `java-api` — Java (Spring Boot) implementation of the same API listening on container port 8080.
 - `openapi` — nginx-based static server serving the OpenAPI HTML UI on container port 80.
-- `keycloak` — Keycloak dev server (optional, remapped to host port 8180 to avoid collisions).
+ - `openapi` — nginx-based static server serving the OpenAPI HTML UI on container port 80.
+ - `keycloak` — (optional) Keycloak is not included in this compose by default. Run Keycloak separately if required for authentication testing.
 
 Notes:
 - Both the Perl and Java APIs are configured to use the same Postgres service `db` (DB host `db` inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.
@@ -31,7 +32,7 @@ Notes:
  - 8080 -> Java API (http)
  - 8081 -> OpenAPI UI (nginx)
  - 5432 -> Postgres (DB used by the APIs)
- - 8180 -> Keycloak (if you enable the optional realm import)
+ - 8180 -> Keycloak (if you run Keycloak separately and expose it on this host port)
 
 ## Quick start (PowerShell)
 

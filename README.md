@@ -19,7 +19,7 @@ The top-level `docker-compose.yml` (in this folder) starts the following service
   - Note: this service uses a fixed container name `perl-api-1` in the compose file for easier targeting in local dev.
 - `java-api` - Java (Spring Boot) implementation of the same API listening on container port 8080.
 - `openapi` - nginx-based static server serving the OpenAPI HTML UI on container port 80.
-- `keycloak` - Keycloak dev server (optional, remapped to host port 8180 to avoid collisions).
+- `keycloak` - (optional) Keycloak is not managed by this compose file by default. Run Keycloak separately if you need it for auth testing.
 
 Notes:
 - Both the Perl and Java APIs are configured to use the same Postgres service `db` (service name `db` inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.
@@ -31,7 +31,7 @@ Notes:
 - 8080 -> Java API (http)
 - 8081 -> OpenAPI UI (nginx)
 - 5432 -> Postgres (DB used by the APIs)
-- 8180 -> Keycloak (if you enable the optional realm import)
+  # 8180 -> Keycloak (if you run Keycloak separately and expose it on this host port)
 
 ## Quick start (PowerShell)
 
@@ -204,7 +204,7 @@ The top-level `docker-compose.yml` (in this folder) starts the following service
     - Note: this service uses a fixed container name `perl-api-1` in the compose file for easier targeting in local dev.
 - `java-api` — Java (Spring Boot) implementation of the same API listening on container port 8080.
 - `openapi` — nginx-based static server serving the OpenAPI HTML UI on container port 80.
-- `keycloak` — Keycloak dev server (optional, remapped to host port 8180 to avoid collisions).
+- `keycloak` — (optional) Keycloak is not included in this compose by default. Run Keycloak separately if you need it for auth testing.
 
 Notes:
 - Both the Perl and Java APIs are configured to use the same Postgres service `db` (DB host `db` inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.
@@ -216,7 +216,68 @@ Notes:
  - 8080 -> Java API (http)
  - 8081 -> OpenAPI UI (nginx)
  - 5432 -> Postgres (DB used by the APIs)
- - 8180 -> Keycloak (if you enable the optional realm import)
+ - 8180 -> Keycloak (if you run Keycloak separately and expose it on this host port)
+
+## Component diagram (services & ports)
+
+Below is a small component diagram that shows the main services in this repository and the ports used for host and container communication.
+
+Mermaid diagram (if your viewer supports Mermaid):
+
+```mermaid
+flowchart LR
+  subgraph Host
+    H_Admin["Browser / Developer (host)"]
+  end
+
+  subgraph Compose_Network[Docker Compose network]
+    Admin["admin-web\n(container)\nexposed: 8082 -> 3000"]
+    Openapi["openapi (static)\nexposed: 8081 -> 80"]
+    Perl["perl-api\n(container)\nport: 5000"]
+    Java["java-api\n(container)\nport: 8080"]
+    DB["postgres (db)\nport: 5432"]
+  end
+
+  %% Host -> services (host-exposed)
+  H_Admin ---|http 8082| Admin
+  H_Admin ---|http 8081| Openapi
+  H_Admin ---|http 8080| Java
+  H_Admin ---|http 5000| Perl
+
+  %% Container internal communication (service name resolution)
+  Admin -->|http api:5000| Perl
+  Admin -->|http java-api:8080| Java
+  Perl -->|postgres 5432| DB
+  Java -->|postgres 5432| DB
+
+  classDef svc fill:#f8fafc,stroke:#e6eef8
+  class Admin,Openapi,Perl,Java,DB svc
+```
+
+ASCII fallback (if Mermaid not supported):
+
+```
+                    [Browser / Developer]
+                             |
+        -------------------------------------------------
+        |         |               |                     |
+    8082:3000  8081:80        8080:8080            5000:5000
+      admin     openapi         java-api             perl-api
+      (container) (static)      (container)          (container)
+         |           |               |                    |
+         |           |               +------\             |
+         |           |                      \            |
+         |           |                       \           |
+         |           |                        \          |
+         +--------------------------------------> [postgres:5432]
+                                         (shared DB container)
+```
+
+Notes:
+- Host-exposed ports are shown as hostPort:containerPort (for example `8082:3000` means host port 8082 maps to container port 3000 on `admin-web`).
+- Container-to-container communication uses Docker service names and internal container ports (e.g., `admin-web` talks to `api` at `http://api:5000` inside the compose network).
+- Keycloak is not included in this compose by default. If you run Keycloak externally, the typical host port used in earlier notes was `8180`.
+
 
 ## Quick start (PowerShell)
 

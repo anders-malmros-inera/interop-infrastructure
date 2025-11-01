@@ -1,0 +1,34 @@
+﻿<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>README - java-api</title><style>
+      :root{--bg:#fff;--muted:#6c757d}
+      .markdown-body{font-family: Inter,Segoe UI,Helvetica,Arial,sans-serif;line-height:1.6;color:#24292e;background:var(--bg);padding:1rem;max-width:980px;margin:auto}
+      /* enforce readable text color for arbitrary embedded HTML */
+      .markdown-body :not(pre):not(code) { color: #24292e !important; background: transparent !important }
+      .markdown-body h1{font-size:1.6rem;margin:1rem 0}
+      .markdown-body h2{font-size:1.35rem;margin:.85rem 0}
+      .markdown-body h3{font-size:1.15rem;margin:.75rem 0}
+      .markdown-body p{margin:.5rem 0}
+      .markdown-body a{color:#0366d6}
+      .markdown-body pre{background:#0f1720;color:#e6eef8;padding:.75rem;border-radius:6px;overflow:auto}
+      .markdown-body code{background:#f6f8fa;padding:.15rem .3rem;border-radius:6px;color:#111}
+      .markdown-body blockquote{color:var(--muted);border-left:4px solid #e6eef8;padding-left:1rem;margin:0.5rem 0}
+      .markdown-body ul, .markdown-body ol{margin:0.5rem 0 0.5rem 1.25rem}
+      .markdown-body table{border-collapse:collapse;width:100%;margin:0.5rem 0}
+      .markdown-body table th, .markdown-body table td{border:1px solid #e1e4e8;padding:.35rem .5rem}
+      </style></head><body><a class="back" href="/">← Back</a><hr/><div class="markdown-body"><h1 id="java-api-spring-boot-for-service-catalog">Java API (Spring Boot) for Service Catalog</h1>
+<p>This directory contains a minimal Spring Boot implementation of the Service Catalog API that connects to the existing Postgres database.</p>
+<p>Build and run with Docker (example):</p>
+<pre><code class="language-powershell">Set-Location &#39;c:\dev\workspace\interop-infrastructure\java-api&#39;
+docker build -t java-service-catalog:latest .
+docker run --rm -p 8080:8080 -e DB_HOST=db -e DB_PORT=5432 -e DB_NAME=service_catalog -e DB_USER=svcuser -e DB_PASS=svcpass java-service-catalog:latest
+</code></pre>
+<p>Or use the top-level <code>docker-compose.dev.yml</code> which includes <code>db</code>, <code>api</code> (perl), <code>openapi</code> and you can add this service (I updated the compose to include it).</p>
+<p>Endpoints mirror the OpenAPI minimal surface:</p>
+<ul>
+<li>GET /apis</li>
+<li>POST /apis</li>
+<li>GET /apis/{id}</li>
+<li>PUT /apis/{id}</li>
+<li>DELETE /apis/{id}</li>
+<li>GET /sync/apis (basic filter)</li>
+</ul>
+</div></body></html>

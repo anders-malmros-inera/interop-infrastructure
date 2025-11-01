@@ -1,0 +1,527 @@
+﻿<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>README - root</title><style>
+      :root{--bg:#fff;--muted:#6c757d}
+      .markdown-body{font-family: Inter,Segoe UI,Helvetica,Arial,sans-serif;line-height:1.6;color:#24292e;background:var(--bg);padding:1rem;max-width:980px;margin:auto}
+      /* enforce readable text color for arbitrary embedded HTML */
+      .markdown-body :not(pre):not(code) { color: #24292e !important; background: transparent !important }
+      .markdown-body h1{font-size:1.6rem;margin:1rem 0}
+      .markdown-body h2{font-size:1.35rem;margin:.85rem 0}
+      .markdown-body h3{font-size:1.15rem;margin:.75rem 0}
+      .markdown-body p{margin:.5rem 0}
+      .markdown-body a{color:#0366d6}
+      .markdown-body pre{background:#0f1720;color:#e6eef8;padding:.75rem;border-radius:6px;overflow:auto}
+      .markdown-body code{background:#f6f8fa;padding:.15rem .3rem;border-radius:6px;color:#111}
+      .markdown-body blockquote{color:var(--muted);border-left:4px solid #e6eef8;padding-left:1rem;margin:0.5rem 0}
+      .markdown-body ul, .markdown-body ol{margin:0.5rem 0 0.5rem 1.25rem}
+      .markdown-body table{border-collapse:collapse;width:100%;margin:0.5rem 0}
+      .markdown-body table th, .markdown-body table td{border:1px solid #e1e4e8;padding:.35rem .5rem}
+      </style></head><body><a class="back" href="/">← Back</a><hr/><div class="markdown-body"><p>﻿# interop-infrastructure - local development</p>
+<p>This repository contains a small local development stack for the Service Catalog / API interoperability examples used in this workspace.</p>
+<p>This README explains how to build and run the services with Docker Compose, the ports used, and quick troubleshooting tips.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Docker Desktop (or Docker Engine) installed and running</li>
+<li>Docker Compose (v2) - available via the <code>docker compose</code> command</li>
+<li>On Windows, PowerShell is used in the examples below</li>
+</ul>
+<h2 id="what-the-compose-stack-provides">What the compose stack provides</h2>
+<p>The top-level <code>docker-compose.yml</code> (in this folder) starts the following services:</p>
+<ul>
+<li><code>db</code> - Postgres initialized with the <code>api_instances</code> table and one sample row (image built from <code>service-catalog-db/</code>).</li>
+<li><code>api</code> - Perl implementation of the service-catalog API (Dancer2) listening on container port 5000.<ul>
+<li>Note: this service uses a fixed container name <code>perl-api-1</code> in the compose file for easier targeting in local dev.</li>
+</ul>
+</li>
+<li><code>java-api</code> - Java (Spring Boot) implementation of the same API listening on container port 8080.</li>
+<li><code>openapi</code> - nginx-based static server serving the OpenAPI HTML UI on container port 80.</li>
+<li><code>keycloak</code> - (optional) Keycloak is not managed by this compose file by default. Run Keycloak separately if you need it for auth testing.</li>
+</ul>
+<p>Notes:</p>
+<ul>
+<li>Both the Perl and Java APIs are configured to use the same Postgres service <code>db</code> (service name <code>db</code> inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.</li>
+<li>The <code>openapi</code> service is published on host port <code>8081</code> (container <code>80</code>) to avoid collisions with the Java API on host port <code>8080</code>.</li>
+</ul>
+<h2 id="port-mappings-host---container">Port mappings (host -&gt; container)</h2>
+<ul>
+<li>5000 -&gt; Perl API (http)</li>
+<li>8080 -&gt; Java API (http)</li>
+<li>8081 -&gt; OpenAPI UI (nginx)</li>
+<li>5432 -&gt; Postgres (DB used by the APIs)<h1 id="8180---keycloak-if-you-run-keycloak-separately-and-expose-it-on-this-host-port">8180 -&gt; Keycloak (if you run Keycloak separately and expose it on this host port)</h1>
+</li>
+</ul>
+<h2 id="quick-start-powershell">Quick start (PowerShell)</h2>
+<p>From the repository root:</p>
+<pre><code class="language-powershell">cd &#39;C:\dev\workspace\interop-infrastructure&#39;
+docker compose -f docker-compose.yml up --build -d
+</code></pre>
+<p>To stop and remove the stack:</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down
+</code></pre>
+<p>If you have old/renamed services left from a previous compose file, remove orphans when bringing the stack down:</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down --remove-orphans
+</code></pre>
+<h2 id="health--verification">Health &amp; verification</h2>
+<p>Check containers:</p>
+<pre><code class="language-powershell">docker ps --format &quot;table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}&quot;
+</code></pre>
+<p>API health endpoints (when stack is up):</p>
+<ul>
+<li>Perl API (health): <code>http://localhost:5000/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+<li>Java API (health): <code>http://localhost:8080/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+</ul>
+<p>Notes:</p>
+<ul>
+<li>The Perl API container is named <code>perl-api-1</code> (see <code>container_name</code> in <code>docker-compose.yml</code>). Use that name when you want to target the container directly.</li>
+<li>The Java API now exposes <code>/_ping</code> as well (added to the codebase) so both services have a consistent health endpoint.</li>
+</ul>
+<p>Recreate a single service without touching the rest of the stack (useful after code changes):</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml up -d --no-deps --build api
+docker compose -f docker-compose.yml up -d --no-deps --build java-api
+</code></pre>
+<p>If you only need to remove a single orphan container (instead of stopping the whole stack) use:</p>
+<pre><code class="language-powershell">docker stop &lt;container-name&gt;
+docker rm &lt;container-name&gt;
+</code></pre>
+<p>API listing example (returns entries from the shared <code>db</code>):</p>
+<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:5000/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+Invoke-RestMethod -Uri &#39;http://localhost:8080/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+</code></pre>
+<h2 id="database-credentials-development">Database credentials (development)</h2>
+<ul>
+<li>DB name: <code>service_catalog</code></li>
+<li>DB user: <code>svcuser</code></li>
+<li>DB password: <code>svcpass</code></li>
+<li>The APIs are configured in compose to connect to the service name <code>db</code> (host <code>db</code> inside the compose network).</li>
+</ul>
+<p>If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<ul>
+<li>If build fails due to missing directories referenced by the compose file (for example <code>service-catalog</code> or <code>admin-runner</code>), either add those directories or remove/comment the related services in <code>docker-compose.yml</code>.</li>
+<li>To inspect logs:</li>
+</ul>
+<pre><code class="language-powershell">docker logs --since 0s interop-infrastructure-api-1 --tail 200
+docker logs --since 0s interop-infrastructure-java-api-1 --tail 200
+docker logs --since 0s interop-infrastructure-db-1 --tail 200
+</code></pre>
+<ul>
+<li>If ports are already in use on the host, edit <code>docker-compose.yml</code> to remap host ports.</li>
+</ul>
+<h2 id="component-readmes">Component READMEs</h2>
+<p>This repository contains a few services each with their own README. The admin GUI (<code>admin-web</code>) can list and render these READMEs in the right-hand pane.</p>
+<p>Links to component READMEs in this repository:</p>
+<ul>
+<li><a href="/readme?container=perl-api" >admin-web README</a> - the admin/test-runner UI and developer notes.</li>
+<li><a href="/readme?container=perl-api" >perl-api README</a> - instructions for the Perl (Dancer2) implementation.</li>
+<li><a href="/readme?container=perl-api" >java-api README</a> - notes for the Java (Spring Boot) implementation.</li>
+<li><a href="/readme?container=openapi" >openapi README (Docker)</a> - openapi static server and Docker notes.</li>
+</ul>
+<p>If you add more components with README files at the top level, the admin GUI will automatically detect and list them.</p>
+<h2 id="next-steps-and-suggestions">Next steps and suggestions</h2>
+<ul>
+<li>Add healthcheck entries for the <code>api</code> and <code>java-api</code> services for stronger depends_on semantics.</li>
+<li>Remove orphan containers if you don&#39;t need them:</li>
+</ul>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down --remove-orphans
+</code></pre>
+<ul>
+<li>Add a README or small guide inside <code>java-api/</code> and <code>perl-api/</code> describing how to run and develop inside the service (IDE tips, mvn/p5 commands).</li>
+<li>Consider adding a migration tool (Flyway/Liquibase) for the Java app and a similar migration approach for the Perl app to manage schema changes.</li>
+</ul>
+<p>If you want, I can add healthchecks for the two APIs in <code>docker-compose.yml</code> and remove orphan containers - tell me which you&#39;d like me to do next.</p>
+<h2 id="integration-tests--recent-fix">Integration tests &amp; recent fix</h2>
+<p>While expanding the <code>admin-web</code> integration test-runner to perform full CRUD tests, a failure was observed when creating (POST) entries against the Perl API: the DB error showed NULL values for required columns (for example <code>logical_address</code>).</p>
+<p>Root cause</p>
+<ul>
+<li>The Perl Dancer2 POST/PUT handlers were using <code>body_parameters-&gt;as_hashref</code>, which did not reliably decode nested JSON objects in the request body (forms vs JSON). This caused nested fields such as <code>organization</code> and <code>accessModel</code> to be lost, resulting in NULL columns when inserting into Postgres.</li>
+</ul>
+<p>Fix applied</p>
+<ul>
+<li>The Perl handlers for <code>POST /apis</code> and <code>PUT /apis/:id</code> now explicitly decode the raw JSON request body using <code>JSON::MaybeXS::decode_json</code> before passing the payload to the model. This preserves nested objects and prevents NULLs for required columns.</li>
+</ul>
+<p>How to rebuild and run the integration tests</p>
+<ul>
+<li>Rebuild the Perl API image (so the code changes take effect):</li>
+</ul>
+<pre><code class="language-powershell">cd &#39;C:\dev\workspace\interop-infrastructure&#39;
+docker compose -f docker-compose.yml build api
+</code></pre>
+<ul>
+<li>Run the admin-web test-runner (this runs inside the compose network and exercises both services):</li>
+</ul>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml run --rm admin-web node test-runner.js
+</code></pre>
+<ul>
+<li>Alternatively, if the stack is running you can call the admin-web HTTP endpoint which runs the same suite and returns JSON:</li>
+</ul>
+<pre><code>http://localhost:8082/api/run-tests
+</code></pre>
+<p>Notes about create responses</p>
+<ul>
+<li>The Perl API returns the created id as JSON: <code>{ &quot;id&quot;: &quot;...&quot; }</code>.</li>
+<li>The Java API returns the created id as plain text. The test-runner is tolerant of both formats.</li>
+</ul>
+<p>Status</p>
+<ul>
+<li>After the fix the admin-web test-runner shows successful CRUD sequences for both Perl and Java (POST -&gt; GET -&gt; PUT -&gt; GET -&gt; DELETE -&gt; GET).</li>
+</ul>
+<p>Suggested follow-ups</p>
+<ul>
+<li>Add request validation in the Perl model to return clearer 4xx responses for missing required fields.</li>
+<li>Standardize the create-response format (either always JSON with <code>{ id: ... }</code> or always plain text) to simplify clients and tests.</li>
+</ul>
+<h1 id="interop-infrastructure--local-development">interop-infrastructure — local development</h1>
+<p>This repository contains a small local development stack for the Service Catalog / API interoperability examples used in this workspace.</p>
+<p>This README explains how to build and run the services with Docker Compose, the ports used, and quick troubleshooting tips.</p>
+<h2 id="prerequisites-1">Prerequisites</h2>
+<ul>
+<li>Docker Desktop (or Docker Engine) installed and running</li>
+<li>Docker Compose (v2) — available via the <code>docker compose</code> command</li>
+<li>On Windows, PowerShell is used in the examples below</li>
+</ul>
+<h2 id="what-the-compose-stack-provides-1">What the compose stack provides</h2>
+<p>The top-level <code>docker-compose.yml</code> (in this folder) starts the following services:</p>
+<ul>
+<li><code>db</code> — Postgres initialized with the <code>api_instances</code> table and one sample row (image built from <code>service-catalog-db/</code>).</li>
+<li><code>api</code> — Perl implementation of the service-catalog API (Dancer2) listening on container port 5000.<ul>
+<li>Note: this service uses a fixed container name <code>perl-api-1</code> in the compose file for easier targeting in local dev.</li>
+</ul>
+</li>
+<li><code>java-api</code> — Java (Spring Boot) implementation of the same API listening on container port 8080.</li>
+<li><code>openapi</code> — nginx-based static server serving the OpenAPI HTML UI on container port 80.</li>
+<li><code>keycloak</code> — (optional) Keycloak is not included in this compose by default. Run Keycloak separately if you need it for auth testing.</li>
+</ul>
+<p>Notes:</p>
+<ul>
+<li>Both the Perl and Java APIs are configured to use the same Postgres service <code>db</code> (DB host <code>db</code> inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.</li>
+<li>The <code>openapi</code> service is published on host port <code>8081</code> (container <code>80</code>) to avoid collisions with the Java API on host port <code>8080</code>.</li>
+</ul>
+<h2 id="port-mappings-host---container-1">Port mappings (host -&gt; container)</h2>
+<ul>
+<li>5000 -&gt; Perl API (http)</li>
+<li>8080 -&gt; Java API (http)</li>
+<li>8081 -&gt; OpenAPI UI (nginx)</li>
+<li>5432 -&gt; Postgres (DB used by the APIs)</li>
+<li>8180 -&gt; Keycloak (if you run Keycloak separately and expose it on this host port)</li>
+</ul>
+<h2 id="component-diagram-services--ports">Component diagram (services &amp; ports)</h2>
+<p>Below is a small component diagram that shows the main services in this repository and the ports used for host and container communication.</p>
+<p>Mermaid diagram (if your viewer supports Mermaid):</p>
+<pre><code class="language-mermaid">flowchart LR
+  subgraph Host
+    H_Admin[&quot;Browser / Developer (host)&quot;]
+  end
+
+  subgraph Compose_Network[Docker Compose network]
+    Admin[&quot;admin-web\n(container)\nexposed: 8082 -&gt; 3000&quot;]
+    Openapi[&quot;openapi (static)\nexposed: 8081 -&gt; 80&quot;]
+    Perl[&quot;perl-api\n(container)\nport: 5000&quot;]
+    Java[&quot;java-api\n(container)\nport: 8080&quot;]
+    DB[&quot;postgres (db)\nport: 5432&quot;]
+  end
+
+  %% Host -&gt; services (host-exposed)
+  H_Admin ---|http 8082| Admin
+  H_Admin ---|http 8081| Openapi
+  H_Admin ---|http 8080| Java
+  H_Admin ---|http 5000| Perl
+
+  %% Container internal communication (service name resolution)
+  Admin --&gt;|http api:5000| Perl
+  Admin --&gt;|http java-api:8080| Java
+  Perl --&gt;|postgres 5432| DB
+  Java --&gt;|postgres 5432| DB
+
+  classDef svc fill:#f8fafc,stroke:#e6eef8
+  class Admin,Openapi,Perl,Java,DB svc
+</code></pre>
+<p>ASCII fallback (if Mermaid not supported):</p>
+<pre><code>                    [Browser / Developer]
+                             |
+        -------------------------------------------------
+        |         |               |                     |
+    8082:3000  8081:80        8080:8080            5000:5000
+      admin     openapi         java-api             perl-api
+      (container) (static)      (container)          (container)
+         |           |               |                    |
+         |           |               +------\             |
+         |           |                      \            |
+         |           |                       \           |
+         |           |                        \          |
+         +--------------------------------------&gt; [postgres:5432]
+                                         (shared DB container)
+</code></pre>
+<p>Notes:</p>
+<ul>
+<li>Host-exposed ports are shown as hostPort:containerPort (for example <code>8082:3000</code> means host port 8082 maps to container port 3000 on <code>admin-web</code>).</li>
+<li>Container-to-container communication uses Docker service names and internal container ports (e.g., <code>admin-web</code> talks to <code>api</code> at <code>http://api:5000</code> inside the compose network).</li>
+<li>Keycloak is not included in this compose by default. If you run Keycloak externally, the typical host port used in earlier notes was <code>8180</code>.</li>
+</ul>
+<h2 id="quick-start-powershell-1">Quick start (PowerShell)</h2>
+<p>From the repository root:</p>
+<pre><code class="language-powershell">cd &#39;C:\dev\workspace\interop-infrastructure&#39;
+docker compose -f docker-compose.yml up --build -d
+</code></pre>
+<p>To stop and remove the stack:</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down
+</code></pre>
+<p>If you have old/renamed services left from a previous compose file, remove orphans when bringing the stack down:</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down --remove-orphans
+</code></pre>
+<h2 id="health--verification-1">Health &amp; verification</h2>
+<p>Check containers:</p>
+<pre><code class="language-powershell">docker ps --format &quot;table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}&quot;
+</code></pre>
+<p>API health endpoints (when stack is up):</p>
+<ul>
+<li>Perl API (health): <code>http://localhost:5000/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+<li>Java API (health): <code>http://localhost:8080/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+</ul>
+<p>Notes:</p>
+<ul>
+<li>The Perl API container is named <code>perl-api-1</code> (see <code>container_name</code> in <code>docker-compose.yml</code>). Use that name when you want to target the container directly.</li>
+<li>The Java API now exposes <code>/_ping</code> as well (added to the codebase) so both services have a consistent health endpoint.</li>
+</ul>
+<p>Recreate a single service without touching the rest of the stack (useful after code changes):</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml up -d --no-deps --build api
+docker compose -f docker-compose.yml up -d --no-deps --build java-api
+</code></pre>
+<p>If you only need to remove a single orphan container (instead of stopping the whole stack) use:</p>
+<pre><code class="language-powershell">docker stop &lt;container-name&gt;
+docker rm &lt;container-name&gt;
+</code></pre>
+<p>API listing example (returns entries from the shared <code>db</code>):</p>
+<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:5000/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+Invoke-RestMethod -Uri &#39;http://localhost:8080/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+</code></pre>
+<h2 id="database-credentials-development-1">Database credentials (development)</h2>
+<ul>
+<li>DB name: <code>service_catalog</code></li>
+<li>DB user: <code>svcuser</code></li>
+<li>DB password: <code>svcpass</code></li>
+<li>The APIs are configured in compose to connect to the service name <code>db</code> (host <code>db</code> inside the compose network).</li>
+</ul>
+<p>If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.</p>
+<h2 id="troubleshooting-1">Troubleshooting</h2>
+<ul>
+<li>If build fails due to missing directories referenced by the compose file (for example <code>service-catalog</code> or <code>admin-runner</code>), either add those directories or remove/comment the related services in <code>docker-compose.yml</code>.</li>
+<li>To inspect logs:</li>
+</ul>
+<pre><code class="language-powershell">docker logs --since 0s interop-infrastructure-api-1 --tail 200
+docker logs --since 0s interop-infrastructure-java-api-1 --tail 200
+docker logs --since 0s interop-infrastructure-db-1 --tail 200
+</code></pre>
+<ul>
+<li>If ports are already in use on the host, edit <code>docker-compose.yml</code> to remap host ports.</li>
+</ul>
+<h2 id="component-readmes-1">Component READMEs</h2>
+<p>This repository contains a few services each with their own README. The admin GUI (<code>admin-web</code>) can list and render these READMEs in the right-hand pane.</p>
+<p>Links to component READMEs in this repository:</p>
+<ul>
+<li><a href="/readme?container=perl-api" >admin-web README</a> — the admin/test-runner UI and developer notes.</li>
+<li><a href="/readme?container=perl-api" >perl-api README</a> — instructions for the Perl (Dancer2) implementation.</li>
+<li><a href="/readme?container=perl-api" >java-api README</a> — notes for the Java (Spring Boot) implementation.</li>
+<li><a href="/readme?container=openapi" >openapi README (Docker)</a> — openapi static server and Docker notes.</li>
+</ul>
+<p>If you add more components with README files at the top level, the admin GUI will automatically detect and list them.</p>
+<h2 id="next-steps-and-suggestions-1">Next steps and suggestions</h2>
+<ul>
+<li>Add <code>healthcheck</code> entries for the <code>api</code> and <code>java-api</code> services for stronger depends_on semantics.</li>
+<li>Remove orphan containers if you don&#39;t need them:</li>
+</ul>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down --remove-orphans
+</code></pre>
+<ul>
+<li>Add a README or small guide inside <code>java-api/</code> and <code>perl-api/</code> describing how to run and develop inside the service (IDE tips, mvn/p5 commands).</li>
+<li>Consider adding a migration tool (Flyway/Liquibase) for the Java app and a similar migration approach for the Perl app to manage schema changes.</li>
+</ul>
+<p>If you want, I can add healthchecks for the two APIs in <code>docker-compose.yml</code> and remove orphan containers — tell me which you&#39;d like me to do next.</p>
+<h2 id="integration-tests--recent-fix-1">Integration tests &amp; recent fix</h2>
+<p>While expanding the <code>admin-web</code> integration test-runner to perform full CRUD tests, a failure was observed when creating (POST) entries against the Perl API: the DB error showed NULL values for required columns (for example <code>logical_address</code>).</p>
+<p>Root cause</p>
+<ul>
+<li>The Perl Dancer2 POST/PUT handlers were using <code>body_parameters-&gt;as_hashref</code>, which did not reliably decode nested JSON objects in the request body (forms vs JSON). This caused nested fields such as <code>organization</code> and <code>accessModel</code> to be lost, resulting in NULL columns when inserting into Postgres.</li>
+</ul>
+<p>Fix applied</p>
+<ul>
+<li>The Perl handlers for <code>POST /apis</code> and <code>PUT /apis/:id</code> now explicitly decode the raw JSON request body using <code>JSON::MaybeXS::decode_json</code> before passing the payload to the model. This preserves nested objects and prevents NULLs for required columns.</li>
+</ul>
+<h1 id="interop-infrastructure--local-development-1">interop-infrastructure — local development</h1>
+<p>This repository contains a small local development stack for the Service Catalog / API interoperability examples used in this workspace.</p>
+<p>This README explains how to build and run the services with Docker Compose, the ports used, and quick troubleshooting tips.</p>
+<h2 id="prerequisites-2">Prerequisites</h2>
+<ul>
+<li>Docker Desktop (or Docker Engine) installed and running</li>
+<li>Docker Compose (v2) — available via the <code>docker compose</code> command</li>
+<li>On Windows, PowerShell is used in the examples below</li>
+</ul>
+<h2 id="what-the-compose-stack-provides-2">What the compose stack provides</h2>
+<p>The top-level <code>docker-compose.yml</code> (in this folder) starts the following services:</p>
+<ul>
+<li><code>db</code> — Postgres initialized with the <code>api_instances</code> table and one sample row (image built from <code>service-catalog-db/</code>).</li>
+<li><code>api</code> — Perl implementation of the service-catalog API (Dancer2) listening on container port 5000.<ul>
+<li>Note: this service uses a fixed container name <code>perl-api-1</code> in the compose file for easier targeting in local dev.</li>
+</ul>
+</li>
+<li><code>java-api</code> — Java (Spring Boot) implementation of the same API listening on container port 8080.</li>
+<li><code>openapi</code> — nginx-based static server serving the OpenAPI HTML UI on container port 80.</li>
+<li><code>keycloak</code> — Keycloak dev server (optional, remapped to host port 8180 to avoid collisions).</li>
+</ul>
+<p>Notes:</p>
+<ul>
+<li>Both the Perl and Java APIs are configured to use the same Postgres service <code>db</code> (DB host <code>db</code> inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.</li>
+<li>The <code>openapi</code> service is published on host port <code>8081</code> (container <code>80</code>) to avoid collisions with the Java API on host port <code>8080</code>.</li>
+</ul>
+<h2 id="port-mappings-host---container-2">Port mappings (host -&gt; container)</h2>
+<ul>
+<li>5000 -&gt; Perl API (http)</li>
+<li>8080 -&gt; Java API (http)</li>
+<li>8081 -&gt; OpenAPI UI (nginx)</li>
+<li>5432 -&gt; Postgres (DB used by the APIs)</li>
+<li>8180 -&gt; Keycloak (if you enable the optional realm import)</li>
+</ul>
+<h2 id="quick-start-powershell-2">Quick start (PowerShell)</h2>
+<p>From the repository root:</p>
+<pre><code class="language-powershell">cd &#39;C:\dev\workspace\interop-infrastructure&#39;
+docker compose -f docker-compose.yml up --build -d
+</code></pre>
+<p>To stop and remove the stack:</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down
+</code></pre>
+<p>If you have old/renamed services left from a previous compose file, remove orphans when bringing the stack down:</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down --remove-orphans
+</code></pre>
+<h2 id="health--verification-2">Health &amp; verification</h2>
+<p>Check containers:</p>
+<pre><code class="language-powershell">docker ps --format &quot;table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}&quot;
+</code></pre>
+<p>API health endpoints (when stack is up):</p>
+<ul>
+<li>Perl API (health): <code>http://localhost:5000/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+<li>Java API (health): <code>http://localhost:8080/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+</ul>
+<p>Notes:</p>
+<ul>
+<li>The Perl API container is named <code>perl-api-1</code> (see <code>container_name</code> in <code>docker-compose.yml</code>). Use that name when you want to target the container directly.</li>
+<li>The Java API now exposes <code>/_ping</code> as well (added to the codebase) so both services have a consistent health endpoint.</li>
+</ul>
+<p>Recreate a single service without touching the rest of the stack (useful after code changes):</p>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml up -d --no-deps --build api
+docker compose -f docker-compose.yml up -d --no-deps --build java-api
+</code></pre>
+<p>If you only need to remove a single orphan container (instead of stopping the whole stack) use:</p>
+<pre><code class="language-powershell">docker stop &lt;container-name&gt;
+docker rm &lt;container-name&gt;
+</code></pre>
+<p>API listing example (returns entries from the shared <code>db</code>):</p>
+<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:5000/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+Invoke-RestMethod -Uri &#39;http://localhost:8080/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+</code></pre>
+<h2 id="database-credentials-development-2">Database credentials (development)</h2>
+<ul>
+<li>DB name: <code>service_catalog</code></li>
+<li>DB user: <code>svcuser</code></li>
+<li>DB password: <code>svcpass</code></li>
+<li>The APIs are configured in compose to connect to the service name <code>db</code> (host <code>db</code> inside the compose network).</li>
+</ul>
+<p>If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.</p>
+<h2 id="troubleshooting-2">Troubleshooting</h2>
+<ul>
+<li>If build fails due to missing directories referenced by the compose file (for example <code>service-catalog</code> or <code>admin-runner</code>), either add those directories or remove/comment the related services in <code>docker-compose.yml</code>.</li>
+<li>To inspect logs:</li>
+</ul>
+<pre><code class="language-powershell">docker logs --since 0s interop-infrastructure-api-1 --tail 200
+docker logs --since 0s interop-infrastructure-java-api-1 --tail 200
+docker logs --since 0s interop-infrastructure-db-1 --tail 200
+</code></pre>
+<ul>
+<li>If ports are already in use on the host, edit <code>docker-compose.yml</code> to remap host ports.</li>
+</ul>
+<h2 id="component-readmes-2">Component READMEs</h2>
+<p>This repository contains a few services each with their own README. The admin GUI (<code>admin-web</code>) can list and render these READMEs in the right-hand pane.</p>
+<p>Links to component README</p>
+<pre><code>
+## Database credentials (development)
+
+ - DB name: `service_catalog`
+ - DB user: `svcuser`
+ - DB password: `svcpass`
+ - The APIs are configured in compose to connect to the service name `db` (host `db` inside the compose network).
+
+If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.
+
+## Troubleshooting
+
+ - If build fails due to missing directories referenced by the compose file (for example `service-catalog` or `admin-runner`), either add those directories or remove/comment the related services in `docker-compose.yml`.
+ - To inspect logs:
+
+```powershell
+docker logs --since 0s interop-infrastructure-api-1 --tail 200
+docker logs --since 0s interop-infrastructure-java-api-1 --tail 200
+docker logs --since 0s interop-infrastructure-db-1 --tail 200
+</code></pre>
+<ul>
+<li>If ports are already in use on the host, edit <code>docker-compose.yml</code> to remap host ports.</li>
+</ul>
+<h2 id="component-readmes-3">Component READMEs</h2>
+<p>This repository contains a few services each with their own README. The admin GUI (<code>admin-web</code>) can list and render these READMEs in the right-hand pane.</p>
+<p>Links to component READMEs in this repository:</p>
+<ul>
+<li><a href="/readme?container=perl-api" >admin-web README</a> — the admin/test-runner UI and developer notes.</li>
+<li><a href="/readme?container=perl-api" >perl-api README</a> — instructions for the Perl (Dancer2) implementation.</li>
+<li><a href="/readme?container=perl-api" >java-api README</a> — notes for the Java (Spring Boot) implementation.</li>
+<li><a href="/readme?container=openapi" >openapi README (Docker)</a> — openapi static server and Docker notes.</li>
+</ul>
+<p>If you add more components with README files at the top level, the admin GUI will automatically detect and list them.</p>
+<h2 id="next-steps-and-suggestions-2">Next steps and suggestions</h2>
+<ul>
+<li>Add <code>healthcheck</code> entries for the <code>api</code> and <code>java-api</code> services for stronger depends_on semantics.</li>
+<li>Remove orphan containers if you don&#39;t need them:</li>
+</ul>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml down --remove-orphans
+</code></pre>
+<ul>
+<li>Add a README or small guide inside <code>java-api/</code> and <code>perl-api/</code> describing how to run and develop inside the service (IDE tips, mvn/p5 commands).</li>
+<li>Consider adding a migration tool (Flyway/Liquibase) for the Java app and a similar migration approach for the Perl app to manage schema changes.</li>
+</ul>
+<p>If you want, I can add healthchecks for the two APIs in <code>docker-compose.yml</code> and remove orphan containers — tell me which you&#39;d like me to do next.</p>
+<h2 id="integration-tests--recent-fix-2">Integration tests &amp; recent fix</h2>
+<p>While expanding the <code>admin-web</code> integration test-runner to perform full CRUD tests, a failure was observed when creating (POST) entries against the Perl API: the DB error showed NULL values for required columns (for example <code>logical_address</code>).</p>
+<p>Root cause</p>
+<ul>
+<li>The Perl Dancer2 POST/PUT handlers were using <code>body_parameters-&gt;as_hashref</code>, which did not reliably decode nested JSON objects in the request body (forms vs JSON). This caused nested fields such as <code>organization</code> and <code>accessModel</code> to be lost, resulting in NULL columns when inserting into Postgres.</li>
+</ul>
+<p>Fix applied</p>
+<ul>
+<li>The Perl handlers for <code>POST /apis</code> and <code>PUT /apis/:id</code> now explicitly decode the raw JSON request body using <code>JSON::MaybeXS::decode_json</code> before passing the payload to the model. This preserves nested objects and prevents NULLs for required columns.</li>
+</ul>
+<p>How to rebuild and run the integration tests</p>
+<ul>
+<li>Rebuild the Perl API image (so the code changes take effect):</li>
+</ul>
+<pre><code class="language-powershell">cd &#39;C:\dev\workspace\interop-infrastructure&#39;
+docker compose -f docker-compose.yml build api
+</code></pre>
+<ul>
+<li>Run the admin-web test-runner (this runs inside the compose network and exercises both services):</li>
+</ul>
+<pre><code class="language-powershell">docker compose -f docker-compose.yml run --rm admin-web node test-runner.js
+</code></pre>
+<ul>
+<li>Alternatively, if the stack is running you can call the admin-web HTTP endpoint which runs the same suite and returns JSON:</li>
+</ul>
+<pre><code>http://localhost:8082/api/run-tests
+</code></pre>
+<p>Notes about create responses</p>
+<ul>
+<li>The Perl API returns the created id as JSON: <code>{ &quot;id&quot;: &quot;...&quot; }</code>.</li>
+<li>The Java API returns the created id as plain text. The test-runner is tolerant of both formats.</li>
+</ul>
+<p>Status</p>
+<ul>
+<li>After the fix the admin-web test-runner shows successful CRUD sequences for both Perl and Java (POST → GET → PUT → GET → DELETE → GET).</li>
+</ul>
+<p>Suggested follow-ups</p>
+<ul>
+<li>Add request validation in the Perl model to return clearer 4xx responses for missing required fields.</li>
+<li>Standardize the create-response format (either always JSON with <code>{ id: ... }</code> or always plain text) to simplify clients and tests.</li>
+</ul>
+</div></body></html>

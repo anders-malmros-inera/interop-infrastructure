@@ -53,19 +53,7 @@ services:
     ports:
       - "8080:8080"
     restart: unless-stopped
-
-  keycloak:
-    image: quay.io/keycloak/keycloak:21.1.1
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_IMPORT: "true"
-    command: ["start-dev","--http-enabled=true"]
-    ports:
-      - "8180:8080"
-    # Optional: import realm file if present under ./service-catalog/keycloak/realm-export.json
-    # volumes:
-    #   - ./service-catalog/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+  # keycloak service removed from compose — manage Keycloak externally if needed
   # NOTE: a second postgres service (named 'postgres') was removed to avoid confusion.
   # The single Postgres instance used by the APIs is `db` (service-catalog-db).
   # If you need a separate Postgres for other projects, add it back with a different name.
