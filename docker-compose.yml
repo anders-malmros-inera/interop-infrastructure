@@ -71,7 +71,9 @@ services:
   # If you need a separate Postgres for other projects, add it back with a different name.
 
   admin-web:
-    build: ./admin-web
+    build:
+      context: .
+      dockerfile: admin-web/Dockerfile
     image: interop-admin-web:latest
     depends_on:
       - api

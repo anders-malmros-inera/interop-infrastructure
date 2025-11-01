@@ -52,7 +52,7 @@ async function runCrudForService(name, base, isPerl) {
   const payload = isPerl ? makePayload(templatePerl) : makePayload(templateJava);
 
   const createRes = await createApi(base, payload);
-  results.push({ name: `${name}_create`, target: `${base}/apis`, result: createRes });
+  results.push({ name: `${name}_create`, target: `${base}/apis`, result: createRes, request: payload });
   if (!createRes.ok) return results;
 
   const id = createRes.id;
@@ -63,7 +63,7 @@ async function runCrudForService(name, base, isPerl) {
 
   if (isPerl) { payload.status = 'updated'; payload.organization.name = 'Org One Updated'; } else { payload.status = 'updated'; payload.organizationName = 'Org One Updated'; }
   const upd = await updateApi(base, id, payload);
-  results.push({ name: `${name}_update`, target: `${base}/apis/${id}`, result: upd });
+  results.push({ name: `${name}_update`, target: `${base}/apis/${id}`, result: upd, request: payload });
 
   const get2 = await getApi(base, id);
   results.push({ name: `${name}_get_after_update`, target: `${base}/apis/${id}`, result: get2 });
@@ -105,6 +105,18 @@ function summarizeResults(results) {
     else if (name.endsWith('_ping') || name.endsWith('_list')) pass = res.ok && res.status === 200;
     else if (name.endsWith('_create')) pass = res.ok && (res.status === 201 || res.status === 200);
     else if (name.endsWith('_created_id')) pass = !!res;
+    else if (name.endsWith('_get_after_delete')) {
+      // after delete, a GET should usually return 404 (not found) or 410 (gone).
+      // treat 404/410 as success; also accept an OK with empty body.
+      if (!res) pass = false;
+      else if (res.status === 404 || res.status === 410) pass = true;
+      else if (res.ok && (res.status === 200 || res.status === 204)) {
+        // consider empty body a success
+        if (!res.body && (!res.bodyText || res.bodyText.trim() === '')) pass = true;
+        else if (Array.isArray(res.body) && res.body.length === 0) pass = true;
+        else pass = false;
+      } else pass = false;
+    }
     else if (name.includes('_get_') || name.match(/_get_after_?/)) pass = res.ok && res.status === 200;
     else if (name.endsWith('_update')) pass = res.ok && (res.status === 200 || res.status === 204);
     else if (name.endsWith('_delete')) pass = res.ok && (res.status === 204 || res.status === 200);

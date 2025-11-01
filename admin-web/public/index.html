@@ -5,33 +5,262 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Interop Admin — Test Runner</title>
     <style>
-      body { font-family: Arial, Helvetica, sans-serif; padding: 1rem; }
-      button { padding: .5rem 1rem; font-size: 1rem }
-      pre { background: #f5f5f5; padding: .5rem; overflow:auto }
+      :root{--accent:#0366d6;--muted:#666}
+      *{box-sizing:border-box}
+      body{font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f7f9fb;color:#222}
+      header{padding:1rem 1.25rem;background:#fff;border-bottom:1px solid #e6e9ee;display:flex;align-items:center;gap:1rem}
+      header h1{font-size:1.1rem;margin:0}
+      .container{display:flex;gap:1rem;padding:1rem}
+      .left{flex:1;min-width:420px}
+      .right{width:480px;max-width:48%;min-width:320px}
+      .controls{background:#fff;padding:1rem;border:1px solid #e6e9ee;border-radius:6px;margin-bottom:1rem}
+      button{background:var(--accent);color:#fff;border:0;padding:.5rem .75rem;border-radius:6px;cursor:pointer}
+      button.secondary{background:#fff;color:var(--accent);border:1px solid #e6e9ee}
+  .tabs button.tab{background:transparent;color:var(--muted);border:0;padding:.4rem .6rem;border-radius:6px;cursor:pointer;font-weight:600}
+  .tabs button.tab.active{background:rgba(3,102,214,0.12);color:var(--accent)}
+      .summary{margin-top:.5rem;color:var(--muted);font-size:.95rem}
+      pre{background:#0f1720;color:#e6eef8;padding:.75rem;border-radius:6px;overflow:auto}
+      .group{margin-top:1rem}
+      .group h2{margin:.5rem 0;color:var(--accent)}
+      .test{display:flex;align-items:center;padding:.5rem;border-bottom:1px solid #f0f3f7;background:#fff;border-radius:6px;margin-bottom:.5rem}
+      .status{width:1.6rem;text-align:center;font-weight:bold}
+      .status.pass{color:#16a34a}
+      .status.fail{color:#dc2626}
+      .test .meta{flex:1;padding-left:.5rem}
+      .test .meta .name{font-weight:600}
+      .test .meta .target{font-size:.85rem;color:var(--muted)}
+      .details{padding:.75rem;background:#fff;border-left:3px solid #e6eef8;margin-bottom:.75rem;border-radius:6px;display:none}
+      .readme-card{background:#fff;padding:1rem;border:1px solid #e6e9ee;border-radius:6px}
+      label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:.25rem}
+      select{width:100%;padding:.5rem;border-radius:6px;border:1px solid #e6e9ee}
+      .readme-frame{margin-top:.75rem;height:66vh;overflow:auto;border:1px solid #eef3fb;border-radius:6px;background:#fff;padding:1rem}
     </style>
   </head>
   <body>
-    <h1>Interop Admin — Integration Tests</h1>
-    <p>Run the integration test suite against services in the compose network.</p>
-    <button id="run">Run tests</button>
-    <div id="out"></div>
+    <header>
+      <div style="display:flex;align-items:center;gap:1rem;width:100%">
+        <h1 style="margin:0">Interop Admin — Integration Tests</h1>
+        <div style="margin-left:1rem;display:flex;gap:.5rem;" class="tabs">
+          <button id="tab-tests" class="tab active">Tests</button>
+          <button id="tab-docs" class="tab">Docs</button>
+        </div>
+        <div style="margin-left:auto;color:var(--muted)">Local test harness and READMEs</div>
+      </div>
+    </header>
+    <div class="container">
+      
+
+      <div id="testsTab">
+        <div class="controls">
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <button id="run">Run tests</button>
+            <button id="run-junit" class="secondary" title="Run tests and write JUnit XML to disk">Run test and write JUnit file to disk</button>
+            <div style="margin-left:auto" id="statusDot"></div>
+          </div>
+          <div class="summary" id="summary"></div>
+        </div>
+        <div id="out"></div>
+      </div>
+
+      <div id="docsTab" style="display:none">
+        <div class="readme-card">
+          <label for="readmeSelect">README viewer</label>
+          <select id="readmeSelect"></select>
+          <div class="readme-frame" id="readmeFrame">Select a README to view</div>
+        </div>
+      </div>
+    </div>
 
     <script>
-      const out = document.getElementById('out');
-      document.getElementById('run').addEventListener('click', async () => {
-        out.innerHTML = '<p>Running tests…</p>';
-        try {
-          const r = await fetch('/api/run-tests');
-          const json = await r.json();
-          if (!json.ok) {
-            out.innerHTML = '<pre>ERROR: ' + JSON.stringify(json, null, 2) + '</pre>';
-            return;
+  const out = document.getElementById('out');
+  const summaryEl = document.getElementById('summary');
+  const statusDot = document.getElementById('statusDot');
+  const readmeSelect = document.getElementById('readmeSelect');
+  const readmeFrame = document.getElementById('readmeFrame');
+  const tabTests = document.getElementById('tab-tests');
+  const tabDocs = document.getElementById('tab-docs');
+  const testsTab = document.getElementById('testsTab');
+  const docsTab = document.getElementById('docsTab');
+
+      function makeElem(tag, attrs = {}, text) {
+        const el = document.createElement(tag);
+        for (const k of Object.keys(attrs)) el.setAttribute(k, attrs[k]);
+        if (text !== undefined) el.textContent = text;
+        return el;
+      }
+
+      function renderResults(json) {
+        out.innerHTML = '';
+        summaryEl.textContent = '';
+        if (!json.ok) { out.innerHTML = '<pre>ERROR: ' + JSON.stringify(json, null, 2) + '</pre>'; return; }
+        const results = json.results || [];
+        const summary = json.summary || {};
+        summaryEl.textContent = `Total: ${summary.total || results.length} · Passed: ${summary.passed || 0} · Failed: ${summary.failed || 0}`;
+        // Group by prefix (perl, java, etc)
+        const groups = {};
+        for (const r of results) {
+          const name = r.name || '(unnamed)';
+          const g = (name.split('_')[0] || 'other');
+          groups[g] = groups[g] || [];
+          groups[g].push(r);
+        }
+
+        for (const gname of Object.keys(groups)) {
+          const grp = groups[gname];
+          const containerEl = makeElem('div', { class: 'group' });
+          containerEl.appendChild(makeElem('h2', {}, gname.toUpperCase()));
+          for (const t of grp) {
+            const tr = makeElem('div', { class: 'test' });
+            const res = t.result;
+            let pass = false;
+            if (!res) pass = false;
+            else if (typeof res === 'string') pass = !!res;
+            else if (res.error) pass = false;
+            else if ((t.name||'').endsWith('_ping') || (t.name||'').endsWith('_list')) pass = res.ok && res.status === 200;
+            else if ((t.name||'').endsWith('_create')) pass = res.ok && (res.status === 201 || res.status === 200);
+            else if ((t.name||'').endsWith('_created_id')) pass = !!res;
+            else if ((t.name||'').endsWith('_get_after_delete')) {
+              // after delete, consider 404/410 a success; also accept empty 200/204
+              if (!res) pass = false;
+              else if (res.status === 404 || res.status === 410) pass = true;
+              else if (res.ok && (res.status === 200 || res.status === 204)) {
+                try {
+                  if (!res.body && (!res.bodyText || res.bodyText.trim() === '')) pass = true;
+                  else if (Array.isArray(res.body) && res.body.length === 0) pass = true;
+                  else pass = false;
+                } catch (e) { pass = false; }
+              } else pass = false;
+            }
+            else if ((t.name||'').includes('_get_') || (t.name||'').match(/_get_after_?/)) pass = res.ok && res.status === 200;
+            else if ((t.name||'').endsWith('_update')) pass = res.ok && (res.status === 200 || res.status === 204);
+            else if ((t.name||'').endsWith('_delete')) pass = res.ok && (res.status === 204 || res.status === 200);
+            else pass = !!res.ok;
+
+            const status = makeElem('div', { class: 'status ' + (pass ? 'pass' : 'fail') }, pass ? '✓' : '✖');
+            tr.appendChild(status);
+            const meta = makeElem('div', { class: 'meta' });
+            meta.appendChild(makeElem('div', { class: 'name' }, t.name || ''));
+            meta.appendChild(makeElem('div', { class: 'target' }, t.target || ''));
+            tr.appendChild(meta);
+
+            const btn = makeElem('button', { class: 'toggle' }, 'Details');
+            tr.appendChild(btn);
+
+            const details = makeElem('div', { class: 'details' });
+            // show request if present
+            if (t.request) {
+              details.appendChild(makeElem('div', {}, 'Request:'));
+              const preReq = makeElem('pre'); preReq.textContent = JSON.stringify(t.request, null, 2);
+              details.appendChild(preReq);
+            }
+            // show response/result
+            details.appendChild(makeElem('div', {}, 'Response:'));
+            const preRes = makeElem('pre');
+            const rr = Object.assign({}, t.result || {});
+            preRes.textContent = JSON.stringify(rr, null, 2);
+            details.appendChild(preRes);
+
+            btn.addEventListener('click', () => {
+              details.style.display = details.style.display === 'none' ? 'block' : 'none';
+            });
+
+            containerEl.appendChild(tr);
+            containerEl.appendChild(details);
           }
-          out.innerHTML = '<pre>' + JSON.stringify(json.results, null, 2) + '</pre>';
+          out.appendChild(containerEl);
+        }
+      }
+
+      async function runTests(junit = false) {
+        out.innerHTML = '<p>Running tests…</p>';
+        statusDot.textContent = '';
+        try {
+          const url = '/api/run-tests' + (junit ? '?junit=1' : '');
+          const r = await fetch(url);
+          const json = await r.json();
+          renderResults(json);
+          statusDot.textContent = json.summary && json.summary.failed ? '⚠' : '✔';
         } catch (e) {
           out.innerHTML = '<pre>Request failed: ' + e.message + '</pre>';
+          statusDot.textContent = '✖';
         }
-      });
+      }
+
+      document.getElementById('run').addEventListener('click', () => runTests(false));
+      document.getElementById('run-junit').addEventListener('click', () => runTests(true));
+
+      function showTab(name) {
+        if (name === 'tests') {
+          testsTab.style.display = '';
+          docsTab.style.display = 'none';
+          tabTests.classList.add('active');
+          tabDocs.classList.remove('active');
+        } else {
+          testsTab.style.display = 'none';
+          docsTab.style.display = '';
+          tabTests.classList.remove('active');
+          tabDocs.classList.add('active');
+          // load readmes when docs tab is shown
+          loadReadmes();
+        }
+      }
+
+      tabTests.addEventListener('click', () => showTab('tests'));
+      tabDocs.addEventListener('click', () => showTab('docs'));
+
+      // default
+      showTab('tests');
+
+      // README listing + viewer
+      async function loadReadmes() {
+        try {
+          const r = await fetch('/api/readmes');
+          const j = await r.json();
+          if (!j.ok) return;
+          readmeSelect.innerHTML = '';
+          for (const it of j.items) {
+            const opt = document.createElement('option'); opt.value = it.id;
+            const label = it.file ? `${it.name} (${it.file})` : it.name;
+            opt.textContent = label;
+            readmeSelect.appendChild(opt);
+          }
+          // pick first (base) by default
+          if (readmeSelect.options.length) {
+            readmeSelect.selectedIndex = 0;
+            showReadme(readmeSelect.value);
+          }
+        } catch (e) {
+          readmeFrame.textContent = 'Failed to load README list: ' + e.message;
+        }
+      }
+
+      async function showReadme(id) {
+        readmeFrame.innerHTML = '<em>Loading README…</em>';
+        try {
+          const r = await fetch('/readme?container=' + encodeURIComponent(id));
+          if (!r.ok) {
+            readmeFrame.textContent = 'README not found for: ' + id;
+            return;
+          }
+          const html = await r.text();
+          // strip outer html/head/body to embed only inner content if present
+          const bodyStart = html.indexOf('<body');
+          if (bodyStart >= 0) {
+            const bodyOpen = html.indexOf('>', bodyStart);
+            const bodyClose = html.lastIndexOf('</body>');
+            if (bodyOpen >= 0 && bodyClose > bodyOpen) {
+              readmeFrame.innerHTML = html.slice(bodyOpen + 1, bodyClose);
+              return;
+            }
+          }
+          readmeFrame.innerHTML = html;
+        } catch (e) {
+          readmeFrame.textContent = 'Failed to load README: ' + e.message;
+        }
+      }
+
+      readmeSelect.addEventListener('change', () => showReadme(readmeSelect.value));
+      loadReadmes();
     </script>
   </body>
 </html>
