@@ -33,5 +33,20 @@ services:
       - "8080:80"
     restart: unless-stopped
 
+  java-api:
+    build: ./java-api
+    image: java-service-catalog:latest
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: service_catalog
+      DB_USER: svcuser
+      DB_PASS: svcpass
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
 volumes:
   db_data:

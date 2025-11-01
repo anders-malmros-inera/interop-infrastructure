@@ -1,4 +1,59 @@
 services:
+  db:
+    build: ./service-catalog-db
+    image: service-catalog-db:latest
+    environment:
+      POSTGRES_DB: service_catalog
+      POSTGRES_USER: svcuser
+      POSTGRES_PASSWORD: svcpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U svcuser -d service_catalog || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./perl-api
+    image: perl-service-catalog:latest
+    container_name: perl-api-1
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: service_catalog
+      DB_USER: svcuser
+      DB_PASS: svcpass
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  openapi:
+    build: ./openapi
+    image: interop-openapi:latest
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+
+  java-api:
+    build: ./java-api
+    image: java-service-catalog:latest
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: service_catalog
+      DB_USER: svcuser
+      DB_PASS: svcpass
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
   keycloak:
     image: quay.io/keycloak/keycloak:21.1.1
     environment:
@@ -7,54 +62,27 @@ services:
       KC_IMPORT: "true"
     command: ["start-dev","--http-enabled=true"]
     ports:
-      - "8080:8080"
-    volumes:
-      - ./service-catalog/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - "8180:8080"
+    # Optional: import realm file if present under ./service-catalog/keycloak/realm-export.json
+    # volumes:
+    #   - ./service-catalog/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+  # NOTE: a second postgres service (named 'postgres') was removed to avoid confusion.
+  # The single Postgres instance used by the APIs is `db` (service-catalog-db).
+  # If you need a separate Postgres for other projects, add it back with a different name.
 
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: catalog
-      POSTGRES_PASSWORD: catalogpass
-      POSTGRES_DB: catalogdb
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  service-catalog:
-    build:
-      context: ./service-catalog
-    ports:
-      - "9000:8080"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/catalogdb
-      SPRING_DATASOURCE_USERNAME: catalog
-      SPRING_DATASOURCE_PASSWORD: catalogpass
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_PROFILES_ACTIVE: docker
+  admin-web:
+    build: ./admin-web
+    image: interop-admin-web:latest
     depends_on:
-      - postgres
-      - keycloak
-
-  admin-runner:
-    build:
-      context: ./admin-runner
-    ports:
-      - "8081:8081"
-    volumes:
-      - ./:/workspace:rw
-      - /var/run/docker.sock:/var/run/docker.sock
+      - api
+      - java-api
     environment:
-      - SERVER_PORT=8081
-      - MAVEN_OPTS=-Xmx1g
-      - TESTCONTAINERS_RYUK_DISABLED=true
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
-      - KEYCLOAK_URL=http://keycloak:8080
-    depends_on:
-      - postgres
-      - keycloak
+      PERL_API_BASE: http://api:5000
+      JAVA_API_BASE: http://java-api:8080
+    ports:
+      - "8082:3000"
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  db_data:
+

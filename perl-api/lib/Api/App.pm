@@ -42,8 +42,15 @@ get '/apis' => sub {
 };
 
 post '/apis' => sub {
-    my $data = body_parameters->as_hashref;
-    unless ($data && ref $data eq 'HASH') { status 400; return { error => 'Invalid JSON' } }
+    # For JSON requests, explicitly decode the raw body to ensure nested objects are preserved
+    my $raw = request->body;
+    my $data;
+    try {
+        $data = JSON::MaybeXS::decode_json($raw // '{}');
+    } catch {
+        status 400; return { error => 'Invalid JSON body' };
+    };
+    unless ($data && ref $data eq 'HASH') { status 400; return { error => 'Invalid JSON payload' } }
     try {
         my $id = $model->create_api($data);
         status 201;
@@ -63,7 +70,13 @@ get '/apis/:id' => sub {
 
 put '/apis/:id' => sub {
     my $id = route_parameters->get('id');
-    my $data = body_parameters->as_hashref;
+    my $raw = request->body;
+    my $data;
+    try {
+        $data = JSON::MaybeXS::decode_json($raw // '{}');
+    } catch {
+        status 400; return { error => 'Invalid JSON body' };
+    };
     try {
         $model->update_api($id, $data);
         return { ok => 1 };
