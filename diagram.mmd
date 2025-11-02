@@ -1,10 +1,15 @@
 flowchart TD
   subgraph Host
     H_Admin["Browser / Developer (host)"]
-    KongGW["Kong (proxy)\nhost: 8080 / 8443"]
   end
 
+  %% Kong can be deployed either on the host (external) or as a container.
+  %% We model it here as part of the Compose network (a container) so it
+  %% clearly sits in front of the other service containers and is reachable
+  %% by the host on mapped ports.
+
   subgraph Compose_Network[Docker Compose network]
+    KongGW["Kong (proxy)\nhost: 8080 / 8443\n(container)"]
     Admin["admin-web\n(container)\nport: 3000"]
     Openapi["openapi (static)\nport: 80"]
     Perl["perl-api\n(container)\nport: 5000"]
