@@ -6,8 +6,9 @@ services:
       POSTGRES_DB: service_catalog
       POSTGRES_USER: svcuser
       POSTGRES_PASSWORD: svcpass
-    ports:
-      - "5432:5432"
+    # db is backend-only; not exposed on the host when Kong is used as gateway
+    networks:
+      - backend
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,16 +29,18 @@ services:
       DB_NAME: service_catalog
       DB_USER: svcuser
       DB_PASS: svcpass
-    ports:
-      - "5000:5000"
+    # backend-only service, no host ports (Kong will proxy to this)
     restart: unless-stopped
+    networks:
+      - backend
 
   openapi:
     build: ./openapi
     image: interop-openapi:latest
-    ports:
-      - "8081:80"
+    # static OpenAPI UI — DMZ-only, proxied by Kong
     restart: unless-stopped
+    networks:
+      - dmz
 
   java-api:
     build: ./java-api
@@ -50,9 +53,10 @@ services:
       DB_NAME: service_catalog
       DB_USER: svcuser
       DB_PASS: svcpass
-    ports:
-      - "8080:8080"
+    # backend-only service, no host ports (Kong will proxy to this)
     restart: unless-stopped
+    networks:
+      - backend
   # keycloak service removed from compose — manage Keycloak externally if needed
   # NOTE: a second postgres service (named 'postgres') was removed to avoid confusion.
   # The single Postgres instance used by the APIs is `db` (service-catalog-db).
@@ -67,12 +71,39 @@ services:
       - api
       - java-api
     environment:
-      PERL_API_BASE: http://api:5000
-      JAVA_API_BASE: http://java-api:8080
+      # admin-web will call APIs through Kong (internal DNS 'kong')
+      PERL_API_BASE: http://kong:8000/perl
+      JAVA_API_BASE: http://kong:8000/java
+    # admin-web is DMZ-only; Kong will expose the UI to the host
+    restart: unless-stopped
+    networks:
+      - dmz
+
+  kong:
+    image: kong:3.3
+    container_name: interop-kong-1
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: "/usr/local/kong/declarative/kong.yml"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
+    volumes:
+      - ./kong.yml:/usr/local/kong/declarative/kong.yml:ro
     ports:
-      - "8082:3000"
+      - "8080:8000"   # public HTTP proxy (mapped to host 8080)
+      - "8443:8443"   # public HTTPS proxy (mapped to host 8443)
+      - "8001:8001"   # Kong admin API (optional)
+    networks:
+      - dmz
+      - backend
     restart: unless-stopped
 
 volumes:
   db_data:
+
+networks:
+  dmz:
+    driver: bridge
+  backend:
+    driver: bridge
 

@@ -1,0 +1,41 @@
+_format_version: "3.0"
+
+services:
+  - name: admin-web
+    url: "http://admin-web:3000"
+    routes:
+      - name: admin-web-admin-route
+        paths:
+          - "/admin"
+        strip_path: true
+      - name: admin-web-api-route
+        paths:
+          - "/api"
+          - "/readme"
+        strip_path: false
+
+  - name: openapi
+    url: "http://openapi:80"
+    routes:
+      - name: openapi-route
+        paths:
+          - "/openapi"
+        strip_path: true
+
+  - name: perl-api
+    url: "http://api:5000"
+    routes:
+      - name: perl-api-route
+        paths:
+          - "/perl"
+        strip_path: true
+
+  - name: java-api
+    url: "http://java-api:8080"
+    routes:
+      - name: java-api-route
+        paths:
+          - "/java"
+        strip_path: true
+
+# Optional: add any plugins (rate-limiting, key-auth, etc.) below as needed.

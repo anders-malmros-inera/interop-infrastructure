@@ -6,8 +6,6 @@ services:
       POSTGRES_DB: service_catalog
       POSTGRES_USER: svcuser
       POSTGRES_PASSWORD: svcpass
-    ports:
-      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
 
@@ -22,15 +20,11 @@ services:
       DB_NAME: service_catalog
       DB_USER: svcuser
       DB_PASS: svcpass
-    ports:
-      - "5000:5000"
     restart: unless-stopped
 
   openapi:
     build: ./openapi
     image: interop-openapi:latest
-    ports:
-      - "8080:80"
     restart: unless-stopped
 
   java-api:
@@ -44,8 +38,6 @@ services:
       DB_NAME: service_catalog
       DB_USER: svcuser
       DB_PASS: svcpass
-    ports:
-      - "8080:8080"
     restart: unless-stopped
 
 volumes:

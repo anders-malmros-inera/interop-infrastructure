@@ -2,7 +2,57 @@
 
 This repository contains a small local development stack for the Service Catalog / API interoperability examples used in this workspace.
 
+Public access is routed through a single API gateway (Kong) in DB-less, declarative mode. Kong runs on the host and proxies requests to the internal services which are attached to either the `dmz` or `backend` Docker networks. With Kong in front, individual services are not required to expose host ports — Kong provides a single public entrypoint for HTTP/HTTPS and routes requests to the appropriate internal service.
+
 This README explains how to build and run the services with Docker Compose, the ports used, and quick troubleshooting tips.
+
+## Kong gateway — routes & usage
+
+When the compose stack runs with Kong enabled the public entrypoint is Kong on the host. By default the compose in this repo publishes Kong's proxy on host port 8080 (HTTP) and 8443 (HTTPS), and the Kong Admin API on 8001 (optional).
+
+Common Kong routes configured by the stack (defaults):
+
+- http://localhost:8080/admin  -> admin-web UI and static assets
+- http://localhost:8080/api    -> admin-web API endpoints (e.g. /api/run-tests)
+- http://localhost:8080/readme -> admin-web README renderer (use /readme?container=<id>)
+- http://localhost:8080/openapi -> static OpenAPI UI
+- http://localhost:8080/perl    -> Perl API (proxied upstream at container:5000)
+- http://localhost:8080/java    -> Java API (proxied upstream at container:8080)
+
+Notes:
+
+- The admin UI issues client-side requests to relative paths such as `/api/run-tests` and `/readme`. With Kong configured to forward `/api` and `/readme` to the admin-web service (without stripping the prefix) the UI works unchanged and the browser calls are correctly proxied.
+- Kong is running in DB-less, declarative mode and reads `kong.yml` from the repository root; edit that file and restart the Kong container to change routes.
+- Kong Admin API is published by the compose for convenience (`http://localhost:8001`) — consider removing the published admin port on shared machines.
+
+Running tests (via Kong) and retrieving JUnit
+
+ - Run the admin test-runner through Kong (returns JSON summary):
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:8080/admin/api/run-tests' -UseBasicParsing
+```
+
+(This calls the test-runner via Kong. If you previously exposed `admin-web` directly you can still call `http://localhost:8082/api/run-tests` when that host port is mapped.)
+
+ - Run and write JUnit XML to the admin-web container (and return summary):
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:8080/api/run-tests?junit=1' -UseBasicParsing
+```
+
+ - Copy the JUnit file from the running admin-web container to the repo root:
+
+```powershell
+$cid = docker compose -f docker-compose.yml ps -q admin-web
+docker cp $cid:/workspace/admin-web/test-results.xml .\test-results.xml
+```
+
+Notes:
+
+ - The test-runner writes JUnit to `/workspace/admin-web/test-results.xml` inside the container when `?junit=1` is used. Copy it to host for CI consumption.
+ - If the UI's Run Tests button still fails in the browser, open the developer console and look for failed fetches to `/api` or `/readme` — Kong should forward those intact to the admin-web service.
+
 
 ## Prerequisites
 
@@ -19,19 +69,30 @@ The top-level `docker-compose.yml` (in this folder) starts the following service
   - Note: this service uses a fixed container name `perl-api-1` in the compose file for easier targeting in local dev.
 - `java-api` - Java (Spring Boot) implementation of the same API listening on container port 8080.
 - `openapi` - nginx-based static server serving the OpenAPI HTML UI on container port 80.
-- `keycloak` - (optional) Keycloak is not managed by this compose file by default. Run Keycloak separately if you need it for auth testing.
+<!-- Keycloak is intentionally not included in this compose file. If you need an auth server for testing, run it separately and configure the gateway accordingly. -->
 
 Notes:
 - Both the Perl and Java APIs are configured to use the same Postgres service `db` (service name `db` inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.
-- The `openapi` service is published on host port `8081` (container `80`) to avoid collisions with the Java API on host port `8080`.
+- The `openapi` service is DMZ-only and served through Kong at `/openapi` (no direct host port is published by the top-level compose).
+ 
+Note: older convenience/dev compose files (for example `docker-compose.dev.yml` and `docker-compose.perl-api.yml`) previously exposed service ports for direct host access. These files have been updated to remove `ports:` mappings so services are only reachable via Kong. If you intentionally need direct host access for development, you can re-add `ports:` to a local copy of those files, but prefer the top-level compose with Kong for security.
 
 ## Port mappings (host -> container)
 
-- 5000 -> Perl API (http)
-- 8080 -> Java API (http)
-- 8081 -> OpenAPI UI (nginx)
+When running with Kong as the public gateway (recommended):
+
+- 8080 -> Kong proxy (HTTP)
+- 8443 -> Kong proxy (HTTPS) — not configured with certs by default
+- 8001 -> Kong Admin API (optional)
+
+Container/internal ports (service-to-service):
+
+- 5000 -> Perl API (container)
+- 8080 -> Java API (container)
+- 80   -> openapi static UI (container)
 - 5432 -> Postgres (DB used by the APIs)
-  # 8180 -> Keycloak (if you run Keycloak separately and expose it on this host port)
+
+Note: individual services are attached to `dmz` or `backend` networks and are not required to expose host ports when Kong is used. If you prefer direct host access for a service, edit `docker-compose.yml` to map the host port explicitly.
 
 ## Quick start (PowerShell)
 
@@ -62,10 +123,12 @@ Check containers:
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
 ```
 
-API health endpoints (when stack is up):
+API health endpoints (when stack is up — use Kong as the public gateway):
 
-- Perl API (health): `http://localhost:5000/_ping` -> {"ok":1,"now":"..."}
-- Java API (health): `http://localhost:8080/_ping` -> {"ok":1,"now":"..."}
+- Perl API (via Kong): `http://localhost:8080/perl/_ping` -> {"ok":1,"now":"..."}
+- Java API (via Kong): `http://localhost:8080/java/_ping` -> {"ok":1,"now":"..."}
+
+Note: the services still listen on their internal container ports (Perl:5000, Java:8080) but they are not published to the host — use the Kong proxy paths above.
 
 Notes:
 - The Perl API container is named `perl-api-1` (see `container_name` in `docker-compose.yml`). Use that name when you want to target the container directly.
@@ -85,11 +148,11 @@ docker stop <container-name>
 docker rm <container-name>
 ```
 
-API listing example (returns entries from the shared `db`):
+API listing example (use Kong proxy paths):
 
 ```powershell
-Invoke-RestMethod -Uri 'http://localhost:5000/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
-Invoke-RestMethod -Uri 'http://localhost:8080/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
+Invoke-RestMethod -Uri 'http://localhost:8080/perl/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
+Invoke-RestMethod -Uri 'http://localhost:8080/java/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
 ```
 
 ## Database credentials (development)
@@ -168,9 +231,11 @@ docker compose -f docker-compose.yml run --rm admin-web node test-runner.js
 
 - Alternatively, if the stack is running you can call the admin-web HTTP endpoint which runs the same suite and returns JSON:
 
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:8080/admin/api/run-tests' -UseBasicParsing
 ```
-http://localhost:8082/api/run-tests
-```
+
+(This calls the test-runner via Kong. If you expose the admin-web host port directly you can also call `http://localhost:8082/api/run-tests`.)
 
 Notes about create responses
 - The Perl API returns the created id as JSON: `{ "id": "..." }`.
@@ -204,79 +269,33 @@ The top-level `docker-compose.yml` (in this folder) starts the following service
     - Note: this service uses a fixed container name `perl-api-1` in the compose file for easier targeting in local dev.
 - `java-api` — Java (Spring Boot) implementation of the same API listening on container port 8080.
 - `openapi` — nginx-based static server serving the OpenAPI HTML UI on container port 80.
-- `keycloak` — (optional) Keycloak is not included in this compose by default. Run Keycloak separately if you need it for auth testing.
+<!-- Keycloak is not included in this compose by default. Run an external auth server if you need authentication testing. -->
 
 Notes:
 - Both the Perl and Java APIs are configured to use the same Postgres service `db` (DB host `db` inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.
-- The `openapi` service is published on host port `8081` (container `80`) to avoid collisions with the Java API on host port `8080`.
+The `openapi` service is DMZ-only and served via Kong at `http://localhost:8080/openapi` (no direct host port is published by the top-level compose).
 
 ## Port mappings (host -> container)
 
  - 5000 -> Perl API (http)
  - 8080 -> Java API (http)
- - 8081 -> OpenAPI UI (nginx)
+ - (no direct host port) -> OpenAPI UI (nginx); use Kong `/openapi`
  - 5432 -> Postgres (DB used by the APIs)
- - 8180 -> Keycloak (if you run Keycloak separately and expose it on this host port)
+ - (If you run an external auth server, map its host port as you prefer.)
 
 ## Component diagram (services & ports)
 
 Below is a small component diagram that shows the main services in this repository and the ports used for host and container communication.
 
-Mermaid diagram (if your viewer supports Mermaid):
+If your viewer does not render Mermaid diagrams, a pre-rendered SVG is included in the repo and displayed here:
 
-```mermaid
-flowchart LR
-  subgraph Host
-    H_Admin["Browser / Developer (host)"]
-  end
-
-  subgraph Compose_Network[Docker Compose network]
-    Admin["admin-web\n(container)\nexposed: 8082 -> 3000"]
-    Openapi["openapi (static)\nexposed: 8081 -> 80"]
-    Perl["perl-api\n(container)\nport: 5000"]
-    Java["java-api\n(container)\nport: 8080"]
-    DB["postgres (db)\nport: 5432"]
-  end
-
-  %% Host -> services (host-exposed)
-  H_Admin ---|http 8082| Admin
-  H_Admin ---|http 8081| Openapi
-  H_Admin ---|http 8080| Java
-  H_Admin ---|http 5000| Perl
-
-  %% Container internal communication (service name resolution)
-  Admin -->|http api:5000| Perl
-  Admin -->|http java-api:8080| Java
-  Perl -->|postgres 5432| DB
-  Java -->|postgres 5432| DB
-
-  classDef svc fill:#f8fafc,stroke:#e6eef8
-  class Admin,Openapi,Perl,Java,DB svc
-```
-
-ASCII fallback (if Mermaid not supported):
-
-```
-                    [Browser / Developer]
-                             |
-        -------------------------------------------------
-        |         |               |                     |
-    8082:3000  8081:80        8080:8080            5000:5000
-      admin     openapi         java-api             perl-api
-      (container) (static)      (container)          (container)
-         |           |               |                    |
-         |           |               +------\             |
-         |           |                      \            |
-         |           |                       \           |
-         |           |                        \          |
-         +--------------------------------------> [postgres:5432]
-                                         (shared DB container)
-```
+![Component diagram](/admin/diagram.svg)
 
 Notes:
-- Host-exposed ports are shown as hostPort:containerPort (for example `8082:3000` means host port 8082 maps to container port 3000 on `admin-web`).
+
+- Host-exposed ports are shown as hostPort:containerPort. When using Kong the public mapping is `8080 -> Kong (proxy)` which forwards to the internal service ports (for example Kong forwards `/admin` to `admin-web:3000`).
 - Container-to-container communication uses Docker service names and internal container ports (e.g., `admin-web` talks to `api` at `http://api:5000` inside the compose network).
-- Keycloak is not included in this compose by default. If you run Keycloak externally, the typical host port used in earlier notes was `8180`.
+<!-- Keycloak is not included in this compose by default. If you run an external auth server, configure its host port per your environment. -->
 
 
 ## Quick start (PowerShell)
@@ -308,14 +327,13 @@ Check containers:
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
 ```
 
-API health endpoints (when stack is up):
+API health endpoints (use Kong proxy paths):
 
- - Perl API (health): `http://localhost:5000/_ping` -> {"ok":1,"now":"..."}
- - Java API (health): `http://localhost:8080/_ping` -> {"ok":1,"now":"..."}
+- Perl API (via Kong): `http://localhost:8080/perl/_ping` -> {"ok":1,"now":"..."}
+- Java API (via Kong): `http://localhost:8080/java/_ping` -> {"ok":1,"now":"..."}
 
 Notes:
-- The Perl API container is named `perl-api-1` (see `container_name` in `docker-compose.yml`). Use that name when you want to target the container directly.
-- The Java API now exposes `/_ping` as well (added to the codebase) so both services have a consistent health endpoint.
+- The services still listen on their internal container ports (Perl:5000, Java:8080) but they are not published to the host — use the Kong proxy paths above.
 
 Recreate a single service without touching the rest of the stack (useful after code changes):
 
@@ -331,21 +349,25 @@ docker stop <container-name>
 docker rm <container-name>
 ```
 
-API listing example (returns entries from the shared `db`):
+API listing example (use Kong proxy paths):
 
 ```powershell
-Invoke-RestMethod -Uri 'http://localhost:5000/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
-Invoke-RestMethod -Uri 'http://localhost:8080/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
+Invoke-RestMethod -Uri 'http://localhost:8080/perl/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
+Invoke-RestMethod -Uri 'http://localhost:8080/java/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
 ```
 
 ## Database credentials (development)
 
- - DB name: `service_catalog`
- - DB user: `svcuser`
- - DB password: `svcpass`
- - The APIs are configured in compose to connect to the service name `db` (host `db` inside the compose network).
+- DB name: `service_catalog`
+- DB user: `svcuser`
+- DB password: `svcpass`
+- The APIs are configured in compose to connect to the service name `db` (host `db` inside the compose network).
 
-If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.
+If you need to connect from the host (psql) for debugging, either publish the DB port in a local compose copy or exec into the container:
+
+```powershell
+docker compose -f docker-compose.yml exec db psql -U svcuser -d service_catalog
+```
 
 ## Troubleshooting
 
@@ -418,19 +440,28 @@ The top-level `docker-compose.yml` (in this folder) starts the following service
 	- Note: this service uses a fixed container name `perl-api-1` in the compose file for easier targeting in local dev.
 - `java-api` — Java (Spring Boot) implementation of the same API listening on container port 8080.
 - `openapi` — nginx-based static server serving the OpenAPI HTML UI on container port 80.
-- `keycloak` — Keycloak dev server (optional, remapped to host port 8180 to avoid collisions).
+<!-- Keycloak dev server is optional and not included in this compose. Run an external auth server if required. -->
 
 Notes:
 - Both the Perl and Java APIs are configured to use the same Postgres service `db` (DB host `db` inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.
-- The `openapi` service is published on host port `8081` (container `80`) to avoid collisions with the Java API on host port `8080`.
+- The `openapi` service is DMZ-only and served via Kong at `/openapi` (no direct host port is published by the top-level compose).
 
 ## Port mappings (host -> container)
 
- - 5000 -> Perl API (http)
- - 8080 -> Java API (http)
- - 8081 -> OpenAPI UI (nginx)
- - 5432 -> Postgres (DB used by the APIs)
- - 8180 -> Keycloak (if you enable the optional realm import)
+When running with Kong as the public gateway (recommended):
+
+- 8080 -> Kong proxy (HTTP)
+- 8443 -> Kong proxy (HTTPS) — not configured with certs by default
+- 8001 -> Kong Admin API (optional)
+
+Container/internal ports (service-to-service):
+
+- 5000 -> Perl API (container)
+- 8080 -> Java API (container)
+- 80   -> openapi static UI (container)
+- 5432 -> Postgres (DB used by the APIs)
+
+Note: individual services are attached to `dmz` or `backend` networks and are not required to expose host ports when Kong is used. If you prefer direct host access for a service, re-add `ports:` mappings to a local copy of a compose file for short-lived debugging.
 
 ## Quick start (PowerShell)
 
@@ -461,14 +492,13 @@ Check containers:
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
 ```
 
-API health endpoints (when stack is up):
+API health endpoints (use Kong proxy paths):
 
- - Perl API (health): `http://localhost:5000/_ping` -> {"ok":1,"now":"..."}
- - Java API (health): `http://localhost:8080/_ping` -> {"ok":1,"now":"..."}
+- Perl API (via Kong): `http://localhost:8080/perl/_ping` -> {"ok":1,"now":"..."}
+- Java API (via Kong): `http://localhost:8080/java/_ping` -> {"ok":1,"now":"..."}
 
 Notes:
-- The Perl API container is named `perl-api-1` (see `container_name` in `docker-compose.yml`). Use that name when you want to target the container directly.
-- The Java API now exposes `/_ping` as well (added to the codebase) so both services have a consistent health endpoint.
+- The services still listen on their internal container ports (Perl:5000, Java:8080) but they are not published to the host — use the Kong proxy paths above.
 
 Recreate a single service without touching the rest of the stack (useful after code changes):
 
@@ -484,21 +514,25 @@ docker stop <container-name>
 docker rm <container-name>
 ```
 
-API listing example (returns entries from the shared `db`):
+API listing example (use Kong proxy paths):
 
 ```powershell
-Invoke-RestMethod -Uri 'http://localhost:5000/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
-Invoke-RestMethod -Uri 'http://localhost:8080/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
+Invoke-RestMethod -Uri 'http://localhost:8080/perl/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
+Invoke-RestMethod -Uri 'http://localhost:8080/java/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
 ```
 
 ## Database credentials (development)
 
- - DB name: `service_catalog`
- - DB user: `svcuser`
- - DB password: `svcpass`
- - The APIs are configured in compose to connect to the service name `db` (host `db` inside the compose network).
+- DB name: `service_catalog`
+- DB user: `svcuser`
+- DB password: `svcpass`
+- The APIs are configured in compose to connect to the service name `db` (host `db` inside the compose network).
 
-If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.
+If you need to connect from the host (psql) for debugging, either publish the DB port in a local compose copy or exec into the container:
+
+```powershell
+docker compose -f docker-compose.yml exec db psql -U svcuser -d service_catalog
+```
 
 ## Troubleshooting
 
@@ -595,9 +629,11 @@ docker compose -f docker-compose.yml run --rm admin-web node test-runner.js
 
 - Alternatively, if the stack is running you can call the admin-web HTTP endpoint which runs the same suite and returns JSON:
 
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:8080/admin/api/run-tests' -UseBasicParsing
 ```
-http://localhost:8082/api/run-tests
-```
+
+(Calls the test-runner via Kong; direct access to `http://localhost:8082/api/run-tests` works only if that host port is mapped in `docker-compose.yml`.)
 
 Notes about create responses
 - The Perl API returns the created id as JSON: `{ "id": "..." }`.

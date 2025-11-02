@@ -33,20 +33,21 @@
 </li>
 <li><code>java-api</code> - Java (Spring Boot) implementation of the same API listening on container port 8080.</li>
 <li><code>openapi</code> - nginx-based static server serving the OpenAPI HTML UI on container port 80.</li>
-<li><code>keycloak</code> - (optional) Keycloak is not included in this compose by default. Run Keycloak separately if required for authentication testing.</li>
+</li>
+<!-- Keycloak is not included in this compose by default. Run an external auth server if required for testing. -->
 </ul>
 <p>Notes:</p>
 <ul>
 <li>Both the Perl and Java APIs are configured to use the same Postgres service <code>db</code> (service name <code>db</code> inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.</li>
-<li>The <code>openapi</code> service is published on host port <code>8081</code> (container <code>80</code>) to avoid collisions with the Java API on host port <code>8080</code>.</li>
+<li>The <code>openapi</code> service is DMZ-only and served via Kong at <code>/openapi</code> (no direct host port is published by the top-level compose).</li>
 </ul>
 <h2 id="port-mappings-host---container">Port mappings (host -&gt; container)</h2>
 <ul>
-<li>5000 -&gt; Perl API (http)</li>
-<li>8080 -&gt; Java API (http)</li>
-<li>8081 -&gt; OpenAPI UI (nginx)</li>
+<li>8080 -&gt; Kong proxy (HTTP)</li>
+<li>8443 -&gt; Kong proxy (HTTPS)</li>
+<li>8001 -&gt; Kong Admin API (optional)</li>
 <li>5432 -&gt; Postgres (DB used by the APIs)</li>
-<li>8180 -&gt; Keycloak (if you run Keycloak separately and expose it on this host port)</li>
+<li>(If you run an external auth server, map its host port as you prefer.)</li>
 </ul>
 <h2 id="quick-start-powershell">Quick start (PowerShell)</h2>
 <p>From the repository root:</p>
@@ -65,8 +66,8 @@ docker compose -f docker-compose.yml up --build -d
 </code></pre>
 <p>API health endpoints (when stack is up):</p>
 <ul>
-<li>Perl API (health): <code>http://localhost:5000/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
-<li>Java API (health): <code>http://localhost:8080/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+<li>Perl API (via Kong): <code>http://localhost:8080/perl/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+<li>Java API (via Kong): <code>http://localhost:8080/java/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
 </ul>
 <p>Notes:</p>
 <ul>
@@ -82,8 +83,8 @@ docker compose -f docker-compose.yml up -d --no-deps --build java-api
 docker rm &lt;container-name&gt;
 </code></pre>
 <p>API listing example (returns entries from the shared <code>db</code>):</p>
-<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:5000/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
-Invoke-RestMethod -Uri &#39;http://localhost:8080/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:8080/perl/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+Invoke-RestMethod -Uri &#39;http://localhost:8080/java/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
 </code></pre>
 <h2 id="database-credentials-development">Database credentials (development)</h2>
 <ul>
@@ -152,8 +153,9 @@ docker compose -f docker-compose.yml build api
 <ul>
 <li>Alternatively, if the stack is running you can call the admin-web HTTP endpoint which runs the same suite and returns JSON:</li>
 </ul>
-<pre><code>http://localhost:8082/api/run-tests
+<pre><code class="language-powershell">Invoke-RestMethod -Uri 'http://localhost:8080/admin/api/run-tests' -UseBasicParsing
 </code></pre>
+<p>(Calls the test-runner via Kong; direct access to <code>http://localhost:8082/api/run-tests</code> works only if that host port is mapped.)</p>
 <p>Notes about create responses</p>
 <ul>
 <li>The Perl API returns the created id as JSON: <code>{ &quot;id&quot;: &quot;...&quot; }</code>.</li>
@@ -187,20 +189,20 @@ docker compose -f docker-compose.yml build api
 </li>
 <li><code>java-api</code> — Java (Spring Boot) implementation of the same API listening on container port 8080.</li>
 <li><code>openapi</code> — nginx-based static server serving the OpenAPI HTML UI on container port 80.</li>
-<li><code>keycloak</code> — Keycloak dev server (optional, remapped to host port 8180 to avoid collisions).</li>
+<!-- Keycloak dev server is optional and not included in this compose. -->
 </ul>
 <p>Notes:</p>
 <ul>
 <li>Both the Perl and Java APIs are configured to use the same Postgres service <code>db</code> (DB host <code>db</code> inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.</li>
-<li>The <code>openapi</code> service is published on host port <code>8081</code> (container <code>80</code>) to avoid collisions with the Java API on host port <code>8080</code>.</li>
+<li>The <code>openapi</code> service is DMZ-only and served via Kong at <code>/openapi</code> (no direct host port is published by the top-level compose).</li>
 </ul>
 <h2 id="port-mappings-host---container-1">Port mappings (host -&gt; container)</h2>
 <ul>
 <li>5000 -&gt; Perl API (http)</li>
 <li>8080 -&gt; Java API (http)</li>
-<li>8081 -&gt; OpenAPI UI (nginx)</li>
+<li>(no direct host port) -&gt; OpenAPI UI (nginx); use Kong <code>/openapi</code></li>
 <li>5432 -&gt; Postgres (DB used by the APIs)</li>
-<li>8180 -&gt; Keycloak (if you enable the optional realm import)</li>
+<li>(If you enable an external auth server, map its host port as needed.)</li>
 </ul>
 <h2 id="quick-start-powershell-1">Quick start (PowerShell)</h2>
 <p>From the repository root:</p>
@@ -219,7 +221,7 @@ docker compose -f docker-compose.yml up --build -d
 </code></pre>
 <p>API health endpoints (when stack is up):</p>
 <ul>
-<li>Perl API (health): <code>http://localhost:5000/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+<li>Perl API (via Kong): <code>http://localhost:8080/perl/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
 <li>Java API (health): <code>http://localhost:8080/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
 </ul>
 <p>Notes:</p>
@@ -236,7 +238,7 @@ docker compose -f docker-compose.yml up -d --no-deps --build java-api
 docker rm &lt;container-name&gt;
 </code></pre>
 <p>API listing example (returns entries from the shared <code>db</code>):</p>
-<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:5000/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:8080/perl/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
 Invoke-RestMethod -Uri &#39;http://localhost:8080/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
 </code></pre>
 <h2 id="database-credentials-development-1">Database credentials (development)</h2>
@@ -310,20 +312,21 @@ docker logs --since 0s interop-infrastructure-db-1 --tail 200
 </li>
 <li><code>java-api</code> — Java (Spring Boot) implementation of the same API listening on container port 8080.</li>
 <li><code>openapi</code> — nginx-based static server serving the OpenAPI HTML UI on container port 80.</li>
-<li><code>keycloak</code> — Keycloak dev server (optional, remapped to host port 8180 to avoid collisions).</li>
+</li>
+<!-- Keycloak dev server is optional and not included in this compose. -->
 </ul>
 <p>Notes:</p>
 <ul>
 <li>Both the Perl and Java APIs are configured to use the same Postgres service <code>db</code> (DB host <code>db</code> inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.</li>
-<li>The <code>openapi</code> service is published on host port <code>8081</code> (container <code>80</code>) to avoid collisions with the Java API on host port <code>8080</code>.</li>
+<li>The <code>openapi</code> service is DMZ-only and served via Kong at <code>/openapi</code> (no direct host port is published by the top-level compose).</li>
 </ul>
 <h2 id="port-mappings-host---container-2">Port mappings (host -&gt; container)</h2>
 <ul>
 <li>5000 -&gt; Perl API (http)</li>
 <li>8080 -&gt; Java API (http)</li>
-<li>8081 -&gt; OpenAPI UI (nginx)</li>
+<li>(no direct host port) -&gt; OpenAPI UI (nginx); use Kong <code>/openapi</code></li>
 <li>5432 -&gt; Postgres (DB used by the APIs)</li>
-<li>8180 -&gt; Keycloak (if you enable the optional realm import)</li>
+<li>(If you enable an external auth server, map its host port as needed.)</li>
 </ul>
 <h2 id="quick-start-powershell-2">Quick start (PowerShell)</h2>
 <p>From the repository root:</p>
@@ -342,7 +345,7 @@ docker compose -f docker-compose.yml up --build -d
 </code></pre>
 <p>API health endpoints (when stack is up):</p>
 <ul>
-<li>Perl API (health): <code>http://localhost:5000/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
+<li>Perl API (via Kong): <code>http://localhost:8080/perl/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
 <li>Java API (health): <code>http://localhost:8080/_ping</code> -&gt; {&quot;ok&quot;:1,&quot;now&quot;:&quot;...&quot;}</li>
 </ul>
 <p>Notes:</p>
@@ -359,7 +362,7 @@ docker compose -f docker-compose.yml up -d --no-deps --build java-api
 docker rm &lt;container-name&gt;
 </code></pre>
 <p>API listing example (returns entries from the shared <code>db</code>):</p>
-<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:5000/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
+<pre><code class="language-powershell">Invoke-RestMethod -Uri &#39;http://localhost:8080/perl/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
 Invoke-RestMethod -Uri &#39;http://localhost:8080/apis?logicalAddress=SE1611&amp;interoperabilitySpecificationId=remissV1&#39; -UseBasicParsing
 </code></pre>
 <h2 id="database-credentials-development-2">Database credentials (development)</h2>
@@ -455,8 +458,9 @@ docker compose -f docker-compose.yml build api
 <ul>
 <li>Alternatively, if the stack is running you can call the admin-web HTTP endpoint which runs the same suite and returns JSON:</li>
 </ul>
-<pre><code>http://localhost:8082/api/run-tests
+<pre><code class="language-powershell">Invoke-RestMethod -Uri 'http://localhost:8080/admin/api/run-tests' -UseBasicParsing
 </code></pre>
+<p>(Calls the test-runner via Kong; direct access to <code>http://localhost:8082/api/run-tests</code> works only if that host port is mapped.)</p>
 <p>Notes about create responses</p>
 <ul>
 <li>The Perl API returns the created id as JSON: <code>{ &quot;id&quot;: &quot;...&quot; }</code>.</li>

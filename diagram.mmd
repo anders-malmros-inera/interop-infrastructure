@@ -1,0 +1,29 @@
+flowchart TD
+  subgraph Host
+    H_Admin["Browser / Developer (host)"]
+    KongGW["Kong (proxy)\nhost: 8080 / 8443"]
+  end
+
+  subgraph Compose_Network[Docker Compose network]
+    Admin["admin-web\n(container)\nport: 3000"]
+    Openapi["openapi (static)\nport: 80"]
+    Perl["perl-api\n(container)\nport: 5000"]
+    Java["java-api\n(container)\nport: 8080"]
+    DB["postgres (db)\nport: 5432"]
+  end
+
+  %% Host -> Kong -> services (proxied)
+  H_Admin --- KongGW
+  KongGW ---|/admin| Admin
+  KongGW ---|/openapi| Openapi
+  KongGW ---|/java| Java
+  KongGW ---|/perl| Perl
+
+  %% Container internal communication (service name resolution)
+  Admin -->|http api:5000| Perl
+  Admin -->|http java-api:8080| Java
+  Perl -->|postgres 5432| DB
+  Java -->|postgres 5432| DB
+
+  classDef svc fill:#f8fafc,stroke:#e6eef8
+  class Admin,Openapi,Perl,Java,DB svc
