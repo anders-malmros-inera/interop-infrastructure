@@ -1,0 +1,96 @@
+name: CI checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure no tracked node_modules
+        run: |
+          # Fail if any node_modules directories are tracked in git
+          if git ls-files | grep -E "(^|/)node_modules(/|$)" >/dev/null 2>&1; then
+            echo "Error: repository contains tracked node_modules. Please remove them and add to .gitignore.";
+            echo "Run: git rm -r --cached node_modules && git commit -m 'Remove tracked node_modules'";
+            exit 1;
+          fi
+
+      - name: Basic Node check (admin-web)
+        working-directory: admin-web
+        run: |
+          node --version
+          npm --version
+          if [ ! -f package-lock.json ]; then echo "package-lock.json missing in admin-web"; exit 1; fi
+          npm ci --only=production
+
+      - name: Maven tests (java-api)
+        working-directory: java-api
+        run: |
+          echo "Running mvn test";
+          mvn -B -DskipTests=false test
+
+      - name: Quick static checks
+        run: |
+          # Basic sanity: ensure docker-compose.yml contains healthchecks for services
+          if ! grep -q "healthcheck" docker-compose.yml; then echo "Warning: docker-compose.yml missing healthcheck entries"; fi
+
+  integration:
+    needs: sanity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io docker-compose-plugin
+
+      - name: Build and start compose stack
+        run: |
+          docker compose -f docker-compose.yml up --build -d
+
+      - name: Wait for services (simple sleep)
+        run: sleep 10
+
+      - name: Run admin-web test-runner via compose
+        run: |
+          docker compose -f docker-compose.yml run --rm admin-web node test-runner.js
+
+      - name: Wait for API to become ready
+        run: |
+          # Poll the running api service until its /_ping responds, then proceed to exec tests
+          set -e
+          for i in $(seq 1 30); do
+            if docker compose -f docker-compose.yml exec -T api sh -c "curl -fsS http://localhost:5000/_ping >/dev/null" 2>/dev/null; then
+              echo "api is ready"; break;
+            fi
+            echo "Waiting for api to be ready ($i/30)...";
+            sleep 2;
+          done
+          # Final check and helpful logs on failure
+          if ! docker compose -f docker-compose.yml exec -T api sh -c "curl -fsS http://localhost:5000/_ping >/dev/null" 2>/dev/null; then
+            echo "API did not become ready in time, dumping api logs:";
+            docker compose -f docker-compose.yml logs --no-color api || true;
+            exit 1;
+          fi
+
+      - name: Run Perl smoke tests (exec into running api)
+        run: |
+          # Execute tests inside the running api container so localhost:5000 is the service
+          docker compose -f docker-compose.yml exec -T api perl -Ilib t/01-smoke.t || (
+            echo "Perl smoke tests failed; dumping api logs";
+            docker compose -f docker-compose.yml logs --no-color api;
+            exit 1
+          )
+
+      - name: Tear down compose
+        if: always()
+        run: docker compose -f docker-compose.yml down --volumes --remove-orphans
