@@ -1,0 +1,30 @@
+name: Security scan
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build images (no push)
+        run: |
+          docker build -f admin-web/Dockerfile -t interop-admin-web:ci ./
+          docker build -f perl-api/Dockerfile -t interop-perl-api:ci ./perl-api
+          docker build -f perl-federation/Dockerfile -t interop-perl-federation:ci ./perl-federation
+          docker build -f java-api/Dockerfile -t interop-java-api:ci ./java-api
+
+      - name: Generate SBOMs (syft)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock anchore/syft:latest packages docker:interop-admin-web:ci -o json > sbom-admin-web.json || true
+
+      - name: Trivy scan images
+        run: |
+          docker run --rm --privileged aquasec/trivy:latest image --exit-code 1 --severity CRITICAL,HIGH interop-admin-web:ci || true

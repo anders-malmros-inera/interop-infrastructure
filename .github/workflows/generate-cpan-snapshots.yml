@@ -1,0 +1,47 @@
+name: Generate CPAN snapshots
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  generate-snapshots:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libpq-dev curl
+
+      - name: Install cpanminus and Carton
+        run: |
+          curl -L https://cpanmin.us | perl - --sudo App::cpanminus
+          cpanm --notest Carton
+
+      - name: Generate snapshot for perl-api
+        working-directory: perl-api
+        run: |
+          carton install
+          ls -la
+        continue-on-error: false
+
+      - name: Upload perl-api snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: perl-api-cpanfile-snapshot
+          path: perl-api/cpanfile.snapshot
+
+      - name: Generate snapshot for perl-federation
+        working-directory: perl-federation
+        run: |
+          carton install
+          ls -la
+        continue-on-error: false
+
+      - name: Upload perl-federation snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: perl-federation-cpanfile-snapshot
+          path: perl-federation/cpanfile.snapshot

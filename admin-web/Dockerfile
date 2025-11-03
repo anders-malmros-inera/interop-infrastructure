@@ -1,14 +1,34 @@
-FROM node:18-slim
+FROM node:18.20.1-slim AS builder
 
-# Copy the entire repository into the image so the admin-web can access
-# other component README files at runtime. We set the workspace root to /workspace
-WORKDIR /workspace
-COPY . .
-
-# Install dependencies for admin-web
-WORKDIR /workspace/admin-web
+# Install production dependencies in a builder stage for deterministic, cached installs
+WORKDIR /src/admin-web
 COPY admin-web/package.json admin-web/package-lock.json* ./
-RUN npm install --production
+RUN npm ci --only=production
+
+FROM node:18.20.1-slim
+
+# Create runtime workspace
+WORKDIR /workspace
+
+# Copy production node_modules from builder
+COPY --from=builder /src/admin-web/node_modules ./admin-web/node_modules
+
+# Copy only the runtime files for admin-web (server, public assets, test runner)
+COPY admin-web/server.js admin-web/test-runner.js admin-web/package.json ./admin-web/
+COPY admin-web/public ./admin-web/public
+
+# Copy repository README and component READMEs that the admin UI may render
+COPY README.md ./
+COPY perl-api/README.md ./perl-api/README.md
+COPY java-api/README.md ./java-api/README.md
+COPY perl-federation/README.md ./perl-federation/README.md
+COPY openapi ./openapi
 
 EXPOSE 3000
-CMD ["npm", "start"]
+
+WORKDIR /workspace/admin-web
+# Create and use a non-root user for runtime
+RUN useradd -m -u 1002 nodeuser || true
+USER nodeuser
+
+CMD ["node", "server.js"]

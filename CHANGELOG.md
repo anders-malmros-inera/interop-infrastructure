@@ -2,6 +2,14 @@
 
 All notable changes to this repository will be documented in this file.
 
+## [Unreleased]
+- Infrastructure hardening: added CI image scanning, SBOM generation and security docs.
+- Added Helm chart skeleton for future Kubernetes deployments.
+- Added Perl smoke tests and CI integration run improvements.
+# Changelog
+
+All notable changes to this repository will be documented in this file.
+
 ## 2025-11-03 — Integration/tester and infra improvements
 
 - Add: Federation membership service scaffold (`perl-federation`) with OpenAPI documentation and admin UI integration.

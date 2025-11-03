@@ -20,7 +20,6 @@ services:
   api:
     build: ./perl-api
     image: perl-service-catalog:latest
-    container_name: perl-api-1
     depends_on:
       - db
     environment:
@@ -33,6 +32,11 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/_ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   openapi:
     build: ./openapi
@@ -57,10 +61,14 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/_ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   federation:
     build: ./perl-federation
     image: perl-federation:latest
-    container_name: federation-1
     depends_on:
       - db
     environment:
@@ -72,6 +80,11 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5001/_ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   # keycloak service removed from compose — manage Keycloak externally if needed
   # NOTE: a second postgres service (named 'postgres') was removed to avoid confusion.
   # The single Postgres instance used by the APIs is `db` (service-catalog-db).
@@ -111,11 +124,17 @@ services:
     ports:
       - "8080:8000"   # public HTTP proxy (mapped to host 8080)
       - "8443:8443"   # public HTTPS proxy (mapped to host 8443)
-      - "8001:8001"   # Kong admin API (optional)
+      # Kong Admin API mapping intentionally removed to avoid exposing admin API on host.
+      # If you need it for local debugging, add back "8001:8001" but take care on shared machines.
     networks:
       - dmz
       - backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8001/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   db_data:

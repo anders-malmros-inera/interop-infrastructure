@@ -9,6 +9,7 @@ import se.inera.servicecatalog.repository.ApiInstanceRepository;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -37,7 +38,8 @@ public class ApiController {
         if (instance.getCreatedAt() == null) instance.setCreatedAt(OffsetDateTime.now());
         instance.setUpdatedAt(OffsetDateTime.now());
         repo.save(instance);
-        return ResponseEntity.status(201).body(instance.getId());
+        // Return JSON object with created id to match Perl API behavior
+        return ResponseEntity.status(201).body(Map.of("id", instance.getId()));
     }
 
     @GetMapping("/{id}")
@@ -65,13 +67,8 @@ public class ApiController {
     public ResponseEntity<List<ApiInstance>> sync(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime updatedSince,
                                                  @RequestParam(required = false) String organizationId,
                                                  @RequestParam(required = false) String interoperabilitySpecificationId) {
-        // Simple implementation: filter in-memory for optional params
-        List<ApiInstance> all = repo.findAll();
-        return ResponseEntity.ok(all.stream().filter(a -> {
-            if (updatedSince != null && a.getUpdatedAt() != null && a.getUpdatedAt().isBefore(updatedSince)) return false;
-            if (organizationId != null && (a.getOrganizationId() == null || !a.getOrganizationId().equals(organizationId))) return false;
-            if (interoperabilitySpecificationId != null && (a.getInteroperabilitySpecificationId() == null || !a.getInteroperabilitySpecificationId().equals(interoperabilitySpecificationId))) return false;
-            return true;
-        }).toList());
+        // Delegate filtering to the repository (database) to avoid loading the entire table into memory
+        List<ApiInstance> results = repo.findByOptionalFilters(updatedSince, organizationId, interoperabilitySpecificationId);
+        return ResponseEntity.ok(results);
     }
 }

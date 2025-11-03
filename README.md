@@ -131,7 +131,7 @@ API health endpoints (when stack is up — use Kong as the public gateway):
 Note: the services still listen on their internal container ports (Perl:5000, Java:8080) but they are not published to the host — use the Kong proxy paths above.
 
 Notes:
-- The Perl API container is named `perl-api-1` (see `container_name` in `docker-compose.yml`). Use that name when you want to target the container directly.
+- The Perl API service is available as the compose service `api`. To target the running container directly prefer using Compose commands such as `docker compose ps -q api` to obtain the container id or `docker compose exec api <cmd>` rather than relying on a fixed container name.
 - The Java API now exposes `/_ping` as well (added to the codebase) so both services have a consistent health endpoint.
 
 Recreate a single service without touching the rest of the stack (useful after code changes):
@@ -269,6 +269,10 @@ docker compose -f docker-compose.yml down --remove-orphans
 
  - Add a README or small guide inside `java-api/` and `perl-api/` describing how to run and develop inside the service (IDE tips, mvn/p5 commands).
  - Consider adding a migration tool (Flyway/Liquibase) for the Java app and a similar migration approach for the Perl app to manage schema changes.
+
+Security note — Kong admin API
+
+- By default this compose setup does not expose the Kong Admin API on the host. Avoid publishing the admin port (`8001`) on shared machines. If you need to debug Kong locally temporarily, publish the port only for the duration of your debug session and remove it afterwards, or restrict access via a firewall or SSH tunnel. Do NOT leave the admin API exposed in multi-user or CI environments.
 
 If you want, I can add healthchecks for the two APIs in `docker-compose.yml` and remove orphan containers — tell me which you'd like me to do next.
 

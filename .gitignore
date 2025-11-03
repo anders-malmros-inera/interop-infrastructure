@@ -14,7 +14,6 @@ readme_preview_*.html
 
 # Docker / IDE
 .DS_Store
-.dockerignore
 .env
 /.vscode/
 .idea/

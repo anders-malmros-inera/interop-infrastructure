@@ -1,0 +1,9 @@
+requires 'Dancer2';
+requires 'DBI';
+requires 'DBD::Pg';
+requires 'JSON::MaybeXS';
+requires 'Try::Tiny';
+requires 'Plack';
+requires 'Starman';
+requires 'Time::Piece';
+requires 'UUID::Tiny';

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: interop-infrastructure
+description: Helm chart skeleton for deploying the interop stack
+version: 0.1.0
+appVersion: "0.1.0"
