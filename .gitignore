@@ -1,0 +1,23 @@
+# Node
+node_modules/
+**/node_modules/
+
+# Admin-web test artifacts
+admin-web/test-results/
+admin-web/test-results.xml
+
+# Test and build artifacts
+test-results.xml
+last-run-tests*.json
+.readme_preview*.html
+readme_preview_*.html
+
+# Docker / IDE
+.DS_Store
+.dockerignore
+.env
+/.vscode/
+.idea/
+
+# Logs
+*.log
