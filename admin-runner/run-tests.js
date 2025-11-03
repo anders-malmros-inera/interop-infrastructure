@@ -6,7 +6,7 @@ async function main() {
   process.env.PERL_API_BASE = process.env.PERL_API_BASE || 'http://127.0.0.1:1';
   process.env.JAVA_API_BASE = process.env.JAVA_API_BASE || 'http://127.0.0.1:1';
   process.env.FED_API_BASE = process.env.FED_API_BASE || 'http://127.0.0.1:1';
-  const junitPath = path.join(__dirname, '..', 'admin-web', 'test-results', 'junit-admin.xml');
+  const junitPath = path.join(__dirname, 'test-results', 'junit-admin-runner.xml');
   try {
     const res = await t.runTestsWithOutput({ junitPath });
     console.log('SUMMARY:');

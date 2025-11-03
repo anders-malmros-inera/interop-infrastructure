@@ -1,0 +1,112 @@
+openapi: 3.0.3
+info:
+  title: Federation Membership API
+  version: 0.1.0
+  description: API för att hantera medlemskap i en federation (medlemmar, tekniska klienter och roller).
+
+servers:
+  - url: https://federation.inera.se/federation/v1
+    description: Produktion
+
+tags:
+  - name: Members
+    description: CRUD för federationens medlemmar
+
+paths:
+  /members:
+    get:
+      tags: [Members]
+      summary: Lista medlemmar
+      responses:
+        '200':
+          description: Lista över medlemmar
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+    post:
+      tags: [Members]
+      summary: Skapa medlem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Member'
+      responses:
+        '201':
+          description: Medlem skapad
+
+  /members/{id}:
+    get:
+      tags: [Members]
+      summary: Hämta medlem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Medlemsdetaljer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '404':
+          description: Hittas ej
+    put:
+      tags: [Members]
+      summary: Uppdatera medlem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Member'
+      responses:
+        '200':
+          description: Uppdaterad
+    delete:
+      tags: [Members]
+      summary: Ta bort medlem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Borttagen
+
+  /_ping:
+    get:
+      summary: Enkel hälsokontroll
+      responses:
+        '200':
+          description: OK
+
+components:
+  schemas:
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+        organizationId:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]

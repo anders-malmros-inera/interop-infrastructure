@@ -10,9 +10,13 @@
       body{font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f7f9fb;color:#222}
       header{padding:1rem 1.25rem;background:#fff;border-bottom:1px solid #e6e9ee;display:flex;align-items:center;gap:1rem}
       header h1{font-size:1.1rem;margin:0}
-      .container{display:flex;gap:1rem;padding:1rem}
-      .left{flex:1;min-width:420px}
-      .right{width:480px;max-width:48%;min-width:320px}
+  .container{display:flex;gap:1rem;padding:1rem}
+  .left{flex:1;min-width:420px}
+  .right{width:480px;max-width:48%;min-width:320px}
+  /* When the APIs tab is active we expand content to full width by switching container to column */
+  .container.apis-full { display: flex; flex-direction: column; gap: 0; padding: 0.5rem 1rem; }
+  #apisTab { width: 100%; padding: 0.5rem; }
+  #apiFrame { width: 100%; height: 80vh; border: 0; }
       .controls{background:#fff;padding:1rem;border:1px solid #e6e9ee;border-radius:6px;margin-bottom:1rem}
       button{background:var(--accent);color:#fff;border:0;padding:.5rem .75rem;border-radius:6px;cursor:pointer}
       button.secondary{background:#fff;color:var(--accent);border:1px solid #e6e9ee}
@@ -43,6 +47,7 @@
         <div style="margin-left:1rem;display:flex;gap:.5rem;" class="tabs">
           <button id="tab-tests" class="tab active">Tests</button>
           <button id="tab-docs" class="tab">Docs</button>
+          <button id="tab-apis" class="tab">APIs</button>
         </div>
         <div style="margin-left:auto;color:var(--muted)">Local test harness and READMEs</div>
       </div>
@@ -69,6 +74,15 @@
           <div class="readme-frame" id="readmeFrame">Select a README to view</div>
         </div>
       </div>
+      <div id="apisTab" style="display:none">
+        <div class="readme-card" style="padding:0.5rem;">
+          <label for="apiSelect">Available API docs</label>
+          <select id="apiSelect" style="width:100%;margin-bottom:.5rem"></select>
+          <div style="background:#fff;border:1px solid #eef3fb;border-radius:6px;overflow:hidden">
+            <iframe id="apiFrame" title="API docs"></iframe>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -79,8 +93,11 @@
   const readmeFrame = document.getElementById('readmeFrame');
   const tabTests = document.getElementById('tab-tests');
   const tabDocs = document.getElementById('tab-docs');
+  const tabApis = document.getElementById('tab-apis');
   const testsTab = document.getElementById('testsTab');
   const docsTab = document.getElementById('docsTab');
+  const apisTab = document.getElementById('apisTab');
+  const containerEl = document.querySelector('.container');
 
       function makeElem(tag, attrs = {}, text) {
         const el = document.createElement(tag);
@@ -191,25 +208,69 @@
 
       function showTab(name) {
         if (name === 'tests') {
+          // reset container layout
+          if (containerEl) containerEl.classList.remove('apis-full');
           testsTab.style.display = '';
           docsTab.style.display = 'none';
+          apisTab.style.display = 'none';
           tabTests.classList.add('active');
           tabDocs.classList.remove('active');
-        } else {
+          tabApis.classList.remove('active');
+        } else if (name === 'docs') {
+          if (containerEl) containerEl.classList.remove('apis-full');
           testsTab.style.display = 'none';
           docsTab.style.display = '';
+          apisTab.style.display = 'none';
           tabTests.classList.remove('active');
           tabDocs.classList.add('active');
+          tabApis.classList.remove('active');
           // load readmes when docs tab is shown
           loadReadmes();
+        } else if (name === 'apis') {
+          // switch container to full-width column layout for APIs
+          if (containerEl) containerEl.classList.add('apis-full');
+          testsTab.style.display = 'none';
+          docsTab.style.display = 'none';
+          apisTab.style.display = '';
+          tabTests.classList.remove('active');
+          tabDocs.classList.remove('active');
+          tabApis.classList.add('active');
+          // load api list when apis tab is shown
+          loadApis();
         }
       }
 
       tabTests.addEventListener('click', () => showTab('tests'));
       tabDocs.addEventListener('click', () => showTab('docs'));
+      tabApis.addEventListener('click', () => showTab('apis'));
 
-      // default
-      showTab('tests');
+      async function loadApis() {
+        try {
+          const r = await fetch('/api/apis');
+          const j = await r.json();
+          if (!j.ok) { document.getElementById('apiSelect').innerHTML = '<option>None</option>'; return; }
+          const sel = document.getElementById('apiSelect'); sel.innerHTML = '';
+          for (const it of j.items) {
+            const opt = document.createElement('option'); opt.value = it.url; opt.textContent = it.name || it.file; sel.appendChild(opt);
+          }
+          if (sel.options.length) { sel.selectedIndex = 0; showApi(sel.value); }
+        } catch (e) {
+          const sel = document.getElementById('apiSelect'); sel.innerHTML = ''; sel.appendChild(new Option('Failed to load: ' + e.message, ''));
+        }
+      }
+
+      function showApi(url) {
+        const frame = document.getElementById('apiFrame');
+        if (!url) { frame.src = '' ; return; }
+        // use absolute origin so iframe works even when proxied
+        const origin = window.location.origin;
+        frame.src = origin + url;
+      }
+
+      document.getElementById('apiSelect').addEventListener('change', (e) => showApi(e.target.value));
+
+  // default
+  showTab('tests');
 
       // README listing + viewer
       async function loadReadmes() {

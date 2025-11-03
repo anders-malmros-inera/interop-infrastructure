@@ -38,4 +38,12 @@ services:
           - "/java"
         strip_path: true
 
+  - name: federation
+    url: "http://federation:5001"
+    routes:
+      - name: federation-route
+        paths:
+          - "/federation"
+        strip_path: true
+
 # Optional: add any plugins (rate-limiting, key-auth, etc.) below as needed.

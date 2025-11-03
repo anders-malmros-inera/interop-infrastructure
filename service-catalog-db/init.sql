@@ -20,3 +20,13 @@ INSERT INTO api_instances (id, logical_address, organization_id, organization_na
 VALUES (
   'sample-1', 'SE1611', 'ORG-1', 'Organisation 1', 'remissV1', 'REST', 'https://api.example.org/remiss', 'active', 'oauth2', 'https://auth.example.org/.well-known', 'sig1'
 ) ON CONFLICT (id) DO NOTHING;
+
+-- Members table used by federation membership API
+CREATE TABLE IF NOT EXISTS members (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  status TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);

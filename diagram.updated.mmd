@@ -27,12 +27,12 @@ flowchart TD
   KongGW ---|http | Federation
 
   %% Container internal communication (service name resolution)
-  Admin -->|http | Perl
-  Admin -->|http | Java
-  Admin -->|http | Federation
-  Perl -->|SQL | DB
-  Java -->|SQL | DB
-  Federation -->|SQL | DB
+  Admin -->|http| Perl
+  Admin -->|http| Java
+  Admin -->|http| Federation
+  Perl -->|SQL| DB
+  Java -->|SQL| DB
+  Federation -->|SQL| DB
 
   classDef svc fill:#f8fafc,stroke:#e6eef8
   class Admin,Openapi,Perl,Java,Federation,DB svc

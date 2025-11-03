@@ -3,10 +3,13 @@ const path = require('path');
 const { runTests, runTestsWithOutput } = require('./test-runner');
 const fs = require('fs');
 const marked = require('marked');
+const fetch = require('node-fetch');
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+// Serve the repository's openapi directory under /openapi so the admin UI can embed API docs
+app.use('/openapi', express.static(path.join(__dirname, '..', 'openapi')));
 
 app.get('/api/run-tests', async (req, res) => {
   try {
@@ -27,6 +30,54 @@ app.get('/api/run-tests', async (req, res) => {
 
 app.get('/api/status', (req, res) => {
   res.json({ ok: true, now: new Date().toISOString() });
+});
+
+// Health-check: verify Kong has the federation route and federation DB/table responds
+app.get('/api/health-check', async (req, res) => {
+  try {
+    const kongAdmin = process.env.KONG_ADMIN_BASE || 'http://kong:8001';
+    const fedBase = process.env.FED_API_BASE || 'http://kong:8000/federation';
+
+    const result = { ok: true, checks: {} };
+
+    // Check Kong routes for /federation
+    try {
+      const r = await fetch(kongAdmin + '/routes');
+      const j = await r.json();
+      const hasFed = Array.isArray(j.data) && j.data.some(rt => Array.isArray(rt.paths) && rt.paths.includes('/federation'));
+      result.checks.kong_route = { ok: !!hasFed, info: hasFed ? 'federation route present' : 'federation route not found' };
+      if (!hasFed) result.ok = false;
+    } catch (e) {
+      result.checks.kong_route = { ok: false, error: e.message };
+      result.ok = false;
+    }
+
+    // Check federation ping via configured FED_API_BASE
+    try {
+      const r2 = await fetch(fedBase + '/_ping', { timeout: 5000 });
+      const body = await r2.text();
+      result.checks.federation_ping = { ok: r2.status === 200, status: r2.status, body: body };
+      if (r2.status !== 200) result.ok = false;
+    } catch (e) {
+      result.checks.federation_ping = { ok: false, error: e.message };
+      result.ok = false;
+    }
+
+    // Check federation members endpoint (table existance and access)
+    try {
+      const r3 = await fetch(fedBase + '/members', { timeout: 5000 });
+      const txt = await r3.text();
+      result.checks.federation_members = { ok: r3.status === 200, status: r3.status, body: txt };
+      if (r3.status !== 200) result.ok = false;
+    } catch (e) {
+      result.checks.federation_members = { ok: false, error: e.message };
+      result.ok = false;
+    }
+
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 // Serve README.md rendered as HTML
@@ -59,6 +110,20 @@ app.get('/api/readmes', (req, res) => {
   res.json({ ok: true, items: items.map(it => ({ id: it.id, name: it.name, file: it.filename || 'README.md' })) });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// List available OpenAPI HTML pages from the repository openapi/ directory
+app.get('/api/apis', (req, res) => {
+  try {
+    // Only expose the curated APIs: Service catalog and Federation
+    const items = [
+      { id: 'service-catalog', name: 'Service catalog', file: 'service-catalog-api.html', url: '/openapi/service-catalog-api.html' },
+      { id: 'federation', name: 'Federation membership', file: 'federation-membership-api.html', url: '/openapi/federation-membership-api.html' }
+    ];
+    res.json({ ok: true, items });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 

@@ -57,6 +57,21 @@ services:
     restart: unless-stopped
     networks:
       - backend
+  federation:
+    build: ./perl-federation
+    image: perl-federation:latest
+    container_name: federation-1
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: service_catalog
+      DB_USER: svcuser
+      DB_PASS: svcpass
+    restart: unless-stopped
+    networks:
+      - backend
   # keycloak service removed from compose — manage Keycloak externally if needed
   # NOTE: a second postgres service (named 'postgres') was removed to avoid confusion.
   # The single Postgres instance used by the APIs is `db` (service-catalog-db).
@@ -70,10 +85,14 @@ services:
     depends_on:
       - api
       - java-api
+      - federation
     environment:
       # admin-web will call APIs through Kong (internal DNS 'kong')
       PERL_API_BASE: http://kong:8000/perl
       JAVA_API_BASE: http://kong:8000/java
+      # admin-web runs on the DMZ network; use Kong proxy for federation so the UI's server-side
+      # runner can reach the federation API through Kong (kong is attached to both dmz and backend).
+      FED_API_BASE: http://kong:8000/federation
     # admin-web is DMZ-only; Kong will expose the UI to the host
     restart: unless-stopped
     networks:
