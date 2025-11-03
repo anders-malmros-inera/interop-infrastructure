@@ -1,0 +1,12 @@
+# Ensure host node_modules and test artifacts are not sent to Docker build context
+node_modules
+**/node_modules
+admin-web/test-results
+test-results.xml
+last-run-tests*.json
+.git
+.github
+.readme_preview*.html
+readme_preview_*.html
+.DS_Store
+*.log
