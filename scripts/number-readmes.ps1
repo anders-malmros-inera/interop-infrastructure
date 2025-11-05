@@ -23,116 +23,122 @@ if ($files.Count -eq 0) { Write-Host "No README files found (after exclusions)."
 foreach ($f in $files) {
     Write-Host "Processing: $($f.FullName)"
     $lines = Get-Content -Path $f.FullName -Encoding utf8 -ErrorAction Stop -WarningAction SilentlyContinue
-    $counters = @(0,0,0,0,0,0)
-    # We need to avoid matching headers inside fenced code blocks. Track code fence state.
-    $inCodeBlock = $false
-    # collect mapping of old anchor -> new anchor for updating internal links
-    $anchorMap = @{}
-    # collect mapping of explicit anchor id lines (e.g. <a id="sec-1-..."></a>)
-    $anchorIdMap = @{}
 
+    # First pass: collect headers while respecting fenced code blocks
+    $headers = @()
+    $inCodeBlock = $false
     for ($i=0; $i -lt $lines.Length; $i++) {
         $line = $lines[$i]
-        # toggle code fence state on lines that start a fenced block (```)
-        if ($line -match '^[ \t]*```') {
-            $inCodeBlock = -not $inCodeBlock
-            continue
-        }
+        if ($line -match '^[ \\t]*```') { $inCodeBlock = -not $inCodeBlock; continue }
         if ($inCodeBlock) { continue }
-
-        # match markdown header lines like '# Title' or '### Title'
-        if ($line -match '^(?<hash>#{1,6})\s*(?<title>.*)') {
-            $hash = $Matches['hash']
-            $level = $hash.Length
-            # increment counters
-            $counters[$level-1] = $counters[$level-1] + 1
-            # zero out deeper levels
-            for ($j = $level; $j -lt $counters.Length; $j++) { $counters[$j] = 0 }
-
-            # build numbering like 1.2.3
-            $parts = @()
-            for ($k=0; $k -lt $level; $k++) {
-                if ($counters[$k] -gt 0) { $parts += $counters[$k].ToString() }
+        if ($line -match '^(?<hash>#{1,6})\\s*(?<title>.*)') {
+            # detect explicit anchor immediately above the header
+            $anchorIndex = -1
+            $anchorId = ''
+            if ($i -gt 0 -and ($lines[$i-1] -match '<a\\s+id="(?<id>[^\"]+)"\\s*>\\s*</a>')) {
+                $anchorIndex = $i-1
+                $anchorId = $Matches['id']
             }
-            $number = ($parts -join '.') + '.'
-
-            # strip any existing leading numbering like '1.', '1.2.', '1) ', '1 -'
-            $rawTitle = $Matches['title'] -replace '^[0-9]+(\.[0-9]+)*[\.)\-\s]*', ''
-            $rawTitle = $rawTitle.Trim()
-            $newTitle = "$number $rawTitle"
-            $newLine = "$hash $newTitle"
-
-            # compute old and new anchor slugs (GitHub-style): lower, remove punctuation, spaces -> '-'
-            $ToSlug = {
-                param($s)
-                if (-not $s) { return '' }
-                $s = $s.ToLowerInvariant()
-                # remove leading numbering if any
-                $s = $s -replace '^[0-9]+(\.[0-9]+)*[\.)\-\s]*',''
-                # remove punctuation except spaces and hyphens
-                $s = $s -replace "[^a-z0-9 \-]", ''
-                $s = $s -replace '\\s+', ' '
-                $s = $s.Trim()
-                $s = $s -replace ' ', '-'
-                return $s
+            $headers += [PSCustomObject]@{
+                Index = $i
+                Level = $Matches['hash'].Length
+                RawTitle = ($Matches['title'] -replace '^[0-9]+(\.[0-9]+)*[\.)\-\s]*','').Trim()
+                AnchorIndex = $anchorIndex
+                AnchorId = $anchorId
             }
-
-            $oldSlug = & $ToSlug $rawTitle
-            $newSlug = & $ToSlug $newTitle
-            if ($oldSlug -and ($oldSlug -ne $newSlug)) {
-                $anchorMap[$oldSlug] = $newSlug
-            }
-
-            # build numeric prefix for anchor id from counters, e.g. '1-2-3'
-            $numParts = @()
-            for ($p=0; $p -lt $level; $p++) { $numParts += $counters[$p].ToString() }
-            $numPrefix = ($numParts -join '-')
-            $slugPart = $newSlug
-            if (-not $slugPart) { $slugPart = $oldSlug }
-            if (-not $slugPart) { $slugPart = 'section' }
-            $newAnchorId = "sec-$numPrefix-$slugPart"
-
-            # if previous line is an explicit anchor tag, replace it and record mapping
-            if ($i -gt 0 -and ($lines[$i-1] -match '<a\s+id="(?<id>[^"]+)"\s*>\s*</a>')) {
-                $oldAnchorId = $Matches['id']
-                if ($oldAnchorId -and ($oldAnchorId -ne $newAnchorId)) { $anchorIdMap[$oldAnchorId] = $newAnchorId }
-                $lines[$i-1] = '<a id="' + $newAnchorId + '"></a>'
-            }
-            else {
-                # insert new anchor line before the header
-                $before = $lines[0..($i-1)]
-                $after = $lines[$i..($lines.Length-1)]
-                $lines = $before + @('<a id="' + $newAnchorId + '"></a>') + $after
-                # advance index to skip the inserted anchor
-                $i += 1
-            }
-
-            $lines[$i] = $newLine
         }
     }
-    # After processing lines, update internal anchor links using the collected anchor map.
-    if ($anchorMap.Count -gt 0) {
-        # reset code block state for second pass
-        $inCodeBlock = $false
-        for ($i=0; $i -lt $lines.Length; $i++) {
-            $line = $lines[$i]
-            # skip code blocks when replacing links
-            if ($line -match '^[ \t]*```') {
-                $inCodeBlock = -not $inCodeBlock
-                continue
-            }
-            if ($inCodeBlock) { continue }
-            foreach ($old in $anchorMap.Keys) {
-                $new = $anchorMap[$old]
-                # replace links like ](#old) or ](./#old)
-                $pattern = "\]\(#" + [Regex]::Escape($old) + "\)"
-                $line = [Regex]::Replace($line, $pattern, "](#" + $new + ")", 'IgnoreCase')
-                # also handle percent-encoded spaces (%20) in anchors
-                $pattern2 = "\]\(#" + [Regex]::Escape(($old -replace ' ', '%20')) + "\)"
-                $line = [Regex]::Replace($line, $pattern2, "](#" + $new + ")", 'IgnoreCase')
-            }
-            $lines[$i] = $line
+
+    # If no headers, skip
+    if ($headers.Count -eq 0) { continue }
+
+    # Compute numbering for headers
+    $counters = @(0,0,0,0,0,0)
+    $anchorMap = @{}
+    $anchorIdMap = @{}
+    $ToSlug = {
+        param($s)
+        if (-not $s) { return '' }
+        $s = $s.ToLowerInvariant()
+        $s = $s -replace '^[0-9]+(\.[0-9]+)*[\.)\-\s]*',''
+        $s = $s -replace "[^a-z0-9 \-]", ''
+        $s = $s -replace '\\s+', ' '
+        $s = $s.Trim()
+        $s = $s -replace ' ', '-'
+        return $s
+    }
+
+    for ($hIndex = 0; $hIndex -lt $headers.Count; $hIndex++) {
+        $h = $headers[$hIndex]
+        $level = $h.Level
+        # increment and reset counters
+        $counters[$level-1] = $counters[$level-1] + 1
+        for ($j = $level; $j -lt $counters.Length; $j++) { $counters[$j] = 0 }
+        # build numbering string
+        $parts = @()
+        for ($k=0; $k -lt $level; $k++) { if ($counters[$k] -gt 0) { $parts += $counters[$k].ToString() } }
+        $number = ($parts -join '.') + '.'
+        $newTitle = "$number $($h.RawTitle)"
+        $newHeaderLine = ('#' * $level) + ' ' + $newTitle
+
+        # slugs and anchor ids
+        $oldSlug = & $ToSlug $h.RawTitle
+        $newSlug = & $ToSlug $newTitle
+        if ($oldSlug -and ($oldSlug -ne $newSlug)) { $anchorMap[$oldSlug] = $newSlug }
+
+        $numParts = @()
+        for ($p=0; $p -lt $level; $p++) { $numParts += $counters[$p].ToString() }
+        $numPrefix = ($numParts -join '-')
+        $slugPart = if ($newSlug) { $newSlug } elseif ($oldSlug) { $oldSlug } else { 'section' }
+        $newAnchorId = "sec-$numPrefix-$slugPart"
+        if ($h.AnchorIndex -gt -1) {
+            $oldAid = $h.AnchorId
+            if ($oldAid -and ($oldAid -ne $newAnchorId)) { $anchorIdMap[$oldAid] = $newAnchorId }
         }
+
+        # store new values back in headers array for second pass
+        $headers[$hIndex].NewHeaderLine = $newHeaderLine
+        $headers[$hIndex].NewAnchorId = $newAnchorId
+        $headers[$hIndex].NewSlug = $newSlug
+    }
+
+    # Apply modifications in reverse order to avoid index shifts
+    for ($hIndex = $headers.Count - 1; $hIndex -ge 0; $hIndex--) {
+        $h = $headers[$hIndex]
+        $idx = $h.Index
+        # if existing anchor line present, replace it; else insert before header
+        if ($h.AnchorIndex -gt -1) {
+            $lines[$h.AnchorIndex] = '<a id="' + $h.NewAnchorId + '"></a>'
+        }
+        else {
+            $before = if ($idx -gt 0) { $lines[0..($idx-1)] } else { @() }
+            $after = $lines[$idx..($lines.Length-1)]
+            $lines = $before + @('<a id="' + $h.NewAnchorId + '"></a>') + $after
+        }
+        # replace header line (note: if we inserted an anchor, header index moved +1)
+        $headerPos = if ($h.AnchorIndex -gt -1) { $h.Index } else { $h.Index + 1 }
+        $lines[$headerPos] = $h.NewHeaderLine
+    }
+
+    # Update same-file links: both slug-based links and explicit anchor id links
+    $inCodeBlock = $false
+    for ($i=0; $i -lt $lines.Length; $i++) {
+        $line = $lines[$i]
+        if ($line -match '^[ \\t]*```') { $inCodeBlock = -not $inCodeBlock; continue }
+        if ($inCodeBlock) { continue }
+        foreach ($old in $anchorMap.Keys) {
+            $new = $anchorMap[$old]
+            $pattern = "\\]\(#" + [Regex]::Escape($old) + "\\)"
+            $line = [Regex]::Replace($line, $pattern, "](#" + $new + ")", 'IgnoreCase')
+            $pattern2 = "\\]\(#" + [Regex]::Escape(($old -replace ' ', '%20')) + "\\)"
+            $line = [Regex]::Replace($line, $pattern2, "](#" + $new + ")", 'IgnoreCase')
+        }
+        foreach ($old in $anchorIdMap.Keys) {
+            $new = $anchorIdMap[$old]
+            $pattern = "\\]\(#" + [Regex]::Escape($old) + "\\)"
+            $line = [Regex]::Replace($line, $pattern, "](#" + $new + ")", 'IgnoreCase')
+        }
+        $lines[$i] = $line
     }
 
     # write back or preview

@@ -1,6 +1,4 @@
-﻿# 1. interop-infrastructure - local development
-# 1. interop-infrastructure - local development
-<a id="sec-2-interop-infrastructure---local-development"></a>
+﻿<a id="sec-2-interop-infrastructure---local-development"></a>
 # 2. interop-infrastructure - local development
 
 This repository contains a small local development stack for the Service Catalog / API interoperability examples used in this workspace.
