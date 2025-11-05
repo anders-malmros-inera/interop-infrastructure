@@ -28,6 +28,67 @@ function Slugify([string]$s) {
     return $t
 }
 
+# Aggressively remove existing Index-like blocks from the source lines.
+function AggressiveRemoveIndexBlocks([string[]]$linesIn) {
+    $L = @($linesIn)
+    $i = 0
+    $out = @()
+    while ($i -lt $L.Length) {
+        $ln = $L[$i]
+        # If this is a header whose text is 'Index' (possibly numbered), skip header and following list/anchor lines
+        if ($ln -match '^[ \t]*(#{1,6})\s*(.*?)\s*$') {
+            $hdrText = $Matches[2] -replace '^[ \t]*[0-9]+(\.[0-9]+)*\.\s*', ''
+            if ($hdrText.Trim().ToLower() -eq 'index') {
+                $i = $i + 1
+                while ($i -lt $L.Length) {
+                    $next = $L[$i]
+                    if ($next -match '^[ \t]*#{1,6}\s+') { break }
+                    if ($next -match '^[ \t]*([-*+]\s+|\d+\.\s+|<a\s+id=|\[.*\]\(#)') { $i = $i + 1; continue }
+                    if ($next -match '^\s*$') { $i = $i + 1; continue }
+                    break
+                }
+                continue
+            }
+        }
+
+        # Aggressively remove a leading list block at file start (if it's mostly links/list items)
+        if ($i -eq 0 -and $ln -match '^[ \t]*([-*+]\s+|\d+\.\s+|\[.*\]\(#|<a\s+id=)') {
+            $j = $i
+            $count = 0
+            while ($j -lt $L.Length) {
+                $n = $L[$j]
+                if ($n -match '^[ \t]*([-*+]\s+|\d+\.\s+|\[.*\]\(#|<a\s+id=)') { $count = $count + 1; $j = $j + 1; continue }
+                if ($n -match '^\s*$') { $j = $j + 1; continue }
+                break
+            }
+            if ($count -ge 2) { $i = $j; continue }
+        }
+
+        # Remove a list block immediately preceding a header if it looks Index-like
+        if ($ln -match '^[ \t]*([-*+]\s+|\d+\.\s+|\[.*\]\(#|<a\s+id=)') {
+            $j = $i
+            $count = 0
+            $linkLike = 0
+            while ($j -lt $L.Length) {
+                $n = $L[$j]
+                if ($n -match '^[ \t]*([-*+]\s+|\d+\.\s+|<a\s+id=)') { $count = $count + 1; if ($n -match '\]\(#' -or $n -match '<a\s+id=') { $linkLike = $linkLike + 1 }; $j = $j + 1; continue }
+                if ($n -match '^\s*$') { $j = $j + 1; continue }
+                break
+            }
+            if ($j -lt $L.Length -and $L[$j] -match '^[ \t]*#{1,6}\s+') {
+                if ($count -ge 2 -and $linkLike -ge 1) { $i = $j; continue }
+            }
+        }
+
+        $out += $ln
+        $i = $i + 1
+    }
+    return $out
+}
+
+# Apply aggressive removal of index-like blocks before parsing headers
+$origLines = AggressiveRemoveIndexBlocks $origLines
+
 # First pass: collect headers (skip code fences)
 $inCode = $false
 $headers = @()
@@ -47,6 +108,9 @@ for ($i = 0; $i -lt $origLines.Length; $i++) {
     }
 }
 
+# Remove any existing 'Index' headers from the collected header list — we want to own the Index
+$headers = @($headers | Where-Object { $_.Text.Trim().ToLower() -ne 'index' })
+
 # Decide special-case: if exactly one level-1 header exists, treat it as document header (do not number it)
 $top1 = @($headers | Where-Object { $_.Level -eq 1 })
 $top1Count = $top1.Count
@@ -60,6 +124,8 @@ if ($top1Count -eq 1) {
 $counters = @(0,0,0,0,0,0,0)
 # Will store mapping slug -> anchor id
 $anchorMap = @{}
+# track used anchor ids to ensure uniqueness
+$usedAnchors = @{}
 # We'll also store computed Number string for each header
 # counter for simple level-2 numbering when a single top-level header exists
 $top2ComputeCounter = 0
@@ -91,15 +157,17 @@ foreach ($h in $headers) {
     $numForId = ($parts -join '-')
     $slugPart = $h.Slug
     $aid = "sec-$numForId-$slugPart"
-    # ensure uniqueness: append counter if needed
+    # ensure uniqueness: append counter if needed (check used anchor ids)
     $base = $aid
     $uc = 1
-    while ($anchorMap.ContainsKey($aid)) {
+    while ($usedAnchors.ContainsKey($aid)) {
         $aid = "$base-$uc"
         $uc = $uc + 1
     }
     $h.Anchor = $aid
-    $anchorMap[$h.Slug] = $h.Anchor
+    $usedAnchors[$aid] = $true
+    # map slug -> first-occurrence anchor (don't overwrite if slug seen before)
+    if (-not $anchorMap.ContainsKey($h.Slug)) { $anchorMap[$h.Slug] = $h.Anchor }
     # compute display number (when a single top-level header exists, strip the leading parent prefix for level-2)
     if ($top1Count -eq 1 -and $h.Level -gt 1) {
         # remove first numeric prefix like 'N.' from 'N.M.' -> 'M.'
@@ -119,15 +187,16 @@ if ($top1Count -eq 1) {
             $h.Number = $flat.ToString() + '.'
             $h.DisplayNumber = $h.Number
             # rebuild anchor id using flat number
-            $base = "sec-$flat-$($h.Slug)"
-            $aid = $base
-            $uc = 1
-            while (($anchorMap.ContainsKey($aid) -and $anchorMap[$h.Slug] -ne $aid)) {
-                $aid = "$base-$uc"
-                $uc = $uc + 1
-            }
-            $h.Anchor = $aid
-            $anchorMap[$h.Slug] = $h.Anchor
+                $base = "sec-$flat-$($h.Slug)"
+                $aid = $base
+                $uc = 1
+                while ($usedAnchors.ContainsKey($aid)) {
+                    $aid = "$base-$uc"
+                    $uc = $uc + 1
+                }
+                $h.Anchor = $aid
+                $usedAnchors[$aid] = $true
+                if (-not $anchorMap.ContainsKey($h.Slug)) { $anchorMap[$h.Slug] = $h.Anchor }
         }
     }
 }
@@ -153,6 +222,22 @@ for ($i = 0; $i -lt $origLines.Length; $i++) {
     if ($ln -match '^[ \t]*(#{1,6})\s*(.*?)\s*$') {
         $level = $Matches[1].Length
         $text = $Matches[2]
+        # If this header text (after stripping numeric prefixes) is 'Index', skip the header AND any following
+        # list/link/anchor lines that belong to the Index block (we'll insert our own Index at the top).
+        $chk = $text -replace '^[ \t]*[0-9]+(\.[0-9]+)*\.\s*', ''
+        if ($chk.Trim().ToLower() -eq 'index') {
+            # advance $i to skip following list-like lines until next header or paragraph
+            $j = $i + 1
+            while ($j -lt $origLines.Length) {
+                $next = $origLines[$j]
+                if ($next -match '^[ \t]*#{1,6}\s+') { break }
+                if ($next -match '^[ \t]*([-*+]\s+|\d+\.\s+|<a\s+id=|\[.*\]\(#)') { $j = $j + 1; continue }
+                if ($next -match '^\s*$') { $j = $j + 1; continue }
+                break
+            }
+            $i = $j - 1
+            continue
+        }
         # match header in headers array at current file position
         # find next header entry whose Line >= i and not yet consumed
         $found = $null
@@ -166,6 +251,11 @@ for ($i = 0; $i -lt $origLines.Length; $i++) {
         if ($null -ne $found) {
             # prepare header text without existing numbering prefix
             $cleanText = $text -replace '^[ \t]*[0-9]+(\.[0-9]+)*\.\s*', ''
+                # skip any existing Index headers in the source content (we insert our own at top)
+                if ($cleanText.Trim().ToLower() -eq 'index') {
+                    # consume the header but do not emit it
+                    continue
+                }
             if ($found.IsDocHeader) {
                 # write header as-is (no numbering), but add anchor for doc header
                 $anchorLine = '<a id="' + $found.Anchor + '"></a>'
@@ -215,9 +305,7 @@ for ($i = 0; $i -lt $origLines.Length; $i++) {
 }
 
 # Build Index block
-$indexLines = @()
-$indexLines += '# Index'
-$indexLines += ''
+    $indexLines = @()
 foreach ($h in $headers) {
     if ($h.IsDocHeader) { continue }
     # effective depth
@@ -232,8 +320,11 @@ foreach ($h in $headers) {
     $txt = $h.Text -replace '^[ \t]*[0-9]+(\.[0-9]+)*\.\s*', ''
     $numForIndex = $h.Number
     if ($top1Count -eq 1 -and $h.Level -eq 2) { $numForIndex = ($h.Number -replace '^[0-9]+\.', '') }
-    $entry = "$indent- $($numForIndex) $txt  [↩](#$($h.Anchor))"
+    # make the whole entry text a link to the header anchor (omit leading bullet)
+    $entry = "$indent[$($numForIndex) $txt](#$($h.Anchor))"
     $indexLines += $entry
+    # add an extra blank line after each index entry for spacing
+    $indexLines += ''
 }
 $indexLines += ''
 
@@ -252,12 +343,20 @@ if ($top1Count -eq 1) {
             $h.DisplayNumber = $h.Number
             # update anchor to use flat prefix for readability
             $h.Anchor = 'sec-' + $flatN.ToString() + '-' + $h.Slug
-            $anchorMap[$h.Slug] = $h.Anchor
+            if (-not $anchorMap.ContainsKey($h.Slug)) { $anchorMap[$h.Slug] = $h.Anchor }
         }
     }
 
     # Walk $out and replace any level-2 header lines in order with flat numbers.
     $flatCounter = 0
+    # Build per-slug ordered lists so we can select the correct occurrence's anchor when duplicates exist
+    $headersBySlugList = @{}
+    foreach ($hh in $headers) {
+        if ($hh.IsDocHeader) { continue }
+        if (-not $headersBySlugList.ContainsKey($hh.Slug)) { $headersBySlugList[$hh.Slug] = @() }
+        $headersBySlugList[$hh.Slug] += $hh
+    }
+    $headersBySlugIndex = @{}
     for ($li = 0; $li -lt $out.Length; $li++) {
         $line = $out[$li]
         if ($line -match '^[ \t]*##\s*(?:[0-9]+(\.[0-9]+)*\.\s*)?(.*)$') {
@@ -265,12 +364,18 @@ if ($top1Count -eq 1) {
             $rest = $Matches[2].Trim()
             # produce new header line
             $out[$li] = '## ' + $flatCounter.ToString() + '. ' + $rest
-            # update preceding anchor line if present
+            # update preceding anchor line if present, selecting the corresponding header occurrence's anchor
             if ($li -gt 0 -and $out[$li - 1] -match '^[ \t]*<a\s+id="(?<id>[^"]+)"\s*>\s*</a>\s*$') {
-                # find slug for rest
                 $slug = Slugify $rest
-                if ($flatMap.ContainsKey($slug)) {
-                    $out[$li - 1] = '<a id="' + $anchorMap[$slug] + '"></a>'
+                if ($flatMap.ContainsKey($slug) -and $headersBySlugList.ContainsKey($slug)) {
+                    $idx = 0
+                    if ($headersBySlugIndex.ContainsKey($slug)) { $idx = $headersBySlugIndex[$slug] }
+                    $list = $headersBySlugList[$slug]
+                    if ($list -and $list.Count -gt $idx) {
+                        $hdrObj = $list[$idx]
+                        $out[$li - 1] = '<a id="' + $hdrObj.Anchor + '"></a>'
+                        $headersBySlugIndex[$slug] = $idx + 1
+                    }
                 }
             }
         }
@@ -278,8 +383,6 @@ if ($top1Count -eq 1) {
 
     # Rebuild index lines using updated header info so Index shows flat numbers
     $newIndex = @()
-    $newIndex += '# Index'
-    $newIndex += ''
     foreach ($h in $headers) {
         if ($h.IsDocHeader) { continue }
         $depth = $h.Level
@@ -290,8 +393,11 @@ if ($top1Count -eq 1) {
         $indent = ' ' * $spacesCount
         $txt = $h.Text -replace '^[ \t]*[0-9]+(\.[0-9]+)*\.\s*', ''
         $numForIndex = $h.Number
-        $entry = "$indent- $($numForIndex) $txt  [↩](#$($h.Anchor))"
+        # make the whole entry text a link to the header anchor (omit leading bullet)
+        $entry = "$indent[$($numForIndex) $txt](#$($h.Anchor))"
         $newIndex += $entry
+        # add an extra blank line after each index entry for spacing
+        $newIndex += ''
     }
     $newIndex += ''
 

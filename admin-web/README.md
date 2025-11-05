@@ -1,22 +1,37 @@
-﻿# Index
+﻿[1. Prerequisites](#sec-1-prerequisites)
 
-- 1. Prerequisites  [â†©](#sec-1-prerequisites)
-- 2. What the compose stack provides  [â†©](#sec-2-what-the-compose-stack-provides)
-- 3. Port mappings (host -> container)  [â†©](#sec-3-port-mappings-host-container)
-- 4. Quick start (PowerShell)  [â†©](#sec-4-quick-start-powershell)
-- 5. Health & verification  [â†©](#sec-5-health-verification)
-- 6. Database credentials (development)  [â†©](#sec-6-database-credentials-development)
-- 7. Troubleshooting  [â†©](#sec-7-troubleshooting)
-- 8. Component READMEs  [â†©](#sec-8-component-readmes)
-- 9. Admin-web additional notes  [â†©](#sec-9-admin-web-additional-notes)
-- 10. Next steps and suggestions  [â†©](#sec-10-next-steps-and-suggestions)
-- 11. Integration tests & recent fix  [â†©](#sec-11-integration-tests-recent-fix)
-- 12. # 11.1. Root cause  [â†©](#sec-12-11-1-root-cause)
-- 13. # 11.2. Fix applied  [â†©](#sec-13-11-2-fix-applied)
-- 14. # 11.3. How to rebuild and run the integration tests  [â†©](#sec-14-11-3-how-to-rebuild-and-run-the-integration-tests)
-- 15. # 11.4. Notes about create responses  [â†©](#sec-15-11-4-notes-about-create-responses)
-- 16. # 11.5. Status  [â†©](#sec-16-11-5-status)
-- 17. # 11.6. Suggested follow-ups  [â†©](#sec-17-11-6-suggested-follow-ups)
+[2. What the compose stack provides](#sec-2-what-the-compose-stack-provides)
+
+[3. Port mappings (host -> container)](#sec-3-port-mappings-host-container)
+
+[4. Quick start (PowerShell)](#sec-4-quick-start-powershell)
+
+[5. Health & verification](#sec-5-health-verification)
+
+[6. Database credentials (development)](#sec-6-database-credentials-development)
+
+[7. Troubleshooting](#sec-7-troubleshooting)
+
+[8. Component READMEs](#sec-8-component-readmes)
+
+[9. Admin-web additional notes](#sec-9-admin-web-additional-notes)
+
+[10. Next steps and suggestions](#sec-10-next-steps-and-suggestions)
+
+[11. Integration tests & recent fix](#sec-11-integration-tests-recent-fix)
+
+[12. # 11.1. Root cause](#sec-12-11-1-root-cause)
+
+[13. # 11.2. Fix applied](#sec-13-11-2-fix-applied)
+
+[14. # 11.3. How to rebuild and run the integration tests](#sec-14-11-3-how-to-rebuild-and-run-the-integration-tests)
+
+[15. # 11.4. Notes about create responses](#sec-15-11-4-notes-about-create-responses)
+
+[16. # 11.5. Status](#sec-16-11-5-status)
+
+[17. # 11.6. Suggested follow-ups](#sec-17-11-6-suggested-follow-ups)
+
 
 <a id="doc-interop-infrastructure-local-development"></a>
 # Interop-infrastructure — local development

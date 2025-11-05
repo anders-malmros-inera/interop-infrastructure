@@ -1,13 +1,19 @@
-﻿# Index
+﻿[1. Key points](#sec-1-key-points)
 
-- 1. Key points  [â†©](#sec-1-key-points)
-- 2. Endpoints (examples)  [â†©](#sec-2-endpoints-examples)
-- 3. How it's exposed in the compose stack  [â†©](#sec-3-how-it-s-exposed-in-the-compose-stack)
-- 4. Database notes  [â†©](#sec-4-database-notes)
-- 5. Running tests and OpenAPI  [â†©](#sec-5-running-tests-and-openapi)
-- 6. Quick curl examples (via Kong)  [â†©](#sec-6-quick-curl-examples-via-kong)
-- 7. Notes for developers  [â†©](#sec-7-notes-for-developers)
-- 8. Contact  [â†©](#sec-8-contact)
+[2. Endpoints (examples)](#sec-2-endpoints-examples)
+
+[3. How it's exposed in the compose stack](#sec-3-how-it-s-exposed-in-the-compose-stack)
+
+[4. Database notes](#sec-4-database-notes)
+
+[5. Running tests and OpenAPI](#sec-5-running-tests-and-openapi)
+
+[6. Quick curl examples (via Kong)](#sec-6-quick-curl-examples-via-kong)
+
+[7. Notes for developers](#sec-7-notes-for-developers)
+
+[8. Contact](#sec-8-contact)
+
 
 <a id="doc-federation-membership-service-perl-federation"></a>
 # Federation membership service (perl-federation)

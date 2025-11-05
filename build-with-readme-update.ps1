@@ -22,8 +22,8 @@ if (-not (Test-Path $script)) { Write-Host "Prebuild script not found: $script";
 powershell -NoProfile -ExecutionPolicy Bypass -File $script
 
 if ($DockerArgs -and $DockerArgs.Length -gt 0) {
-    docker compose build $DockerArgs
+    docker compose up --build -d $DockerArgs
 } else {
-    docker compose build
+    docker compose up --build -d
 }
 

@@ -1,8 +1,9 @@
-﻿# Index
+﻿[1. Files of interest](#sec-1-files-of-interest)
 
-- 1. Files of interest  [â†©](#sec-1-files-of-interest)
-- 2. Applying migrations  [â†©](#sec-2-applying-migrations)
-- 3. Migration guidelines  [â†©](#sec-3-migration-guidelines)
+[2. Applying migrations](#sec-2-applying-migrations)
+
+[3. Migration guidelines](#sec-3-migration-guidelines)
+
 
 <a id="doc-service-catalog-db"></a>
 # service-catalog-db

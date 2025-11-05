@@ -1,20 +1,33 @@
-﻿# Index
+﻿[1. Kong gateway — routes & usage](#sec-1-kong-gateway-routes-usage)
 
-- 1. Kong gateway — routes & usage  [â†©](#sec-1-kong-gateway-routes-usage)
-- 2. Prerequisites  [â†©](#sec-2-prerequisites)
-- 3. What the compose stack provides  [â†©](#sec-3-what-the-compose-stack-provides)
-- 4. Port mappings (host -> container)  [â†©](#sec-4-port-mappings-host-container)
-- 5. Quick start (PowerShell)  [â†©](#sec-5-quick-start-powershell)
-- 6. Health & verification  [â†©](#sec-6-health-verification)
-- 7. Database credentials (development)  [â†©](#sec-7-database-credentials-development)
-- 8. Troubleshooting  [â†©](#sec-8-troubleshooting)
-- 9. Component READMEs  [â†©](#sec-9-component-readmes)
-- 10. Migrations & helper scripts  [â†©](#sec-10-migrations-helper-scripts)
-- 11. Recent changes (short)  [â†©](#sec-11-recent-changes-short)
-- 12. Next steps and suggestions  [â†©](#sec-12-next-steps-and-suggestions)
-- 13. Component READMEs  [â†©](#sec-13-component-readmes)
-- 14. Next steps and suggestions  [â†©](#sec-14-next-steps-and-suggestions)
-- 15. Integration tests & recent fix  [â†©](#sec-15-integration-tests-recent-fix)
+[2. Prerequisites](#sec-2-prerequisites)
+
+[3. What the compose stack provides](#sec-3-what-the-compose-stack-provides)
+
+[4. Port mappings (host -> container)](#sec-4-port-mappings-host-container)
+
+[5. Quick start (PowerShell)](#sec-5-quick-start-powershell)
+
+[6. Health & verification](#sec-6-health-verification)
+
+[7. Database credentials (development)](#sec-7-database-credentials-development)
+
+[8. Troubleshooting](#sec-8-troubleshooting)
+
+[9. Component READMEs](#sec-9-component-readmes)
+
+[10. Migrations & helper scripts](#sec-10-migrations-helper-scripts)
+
+[11. Recent changes (short)](#sec-11-recent-changes-short)
+
+[12. Next steps and suggestions](#sec-12-next-steps-and-suggestions)
+
+[13. Component READMEs](#sec-13-component-readmes)
+
+[14. Next steps and suggestions](#sec-14-next-steps-and-suggestions)
+
+[15. Integration tests & recent fix](#sec-15-integration-tests-recent-fix)
+
 
 <a id="doc-interop-infrastructure-local-development"></a>
 # interop-infrastructure - local development
@@ -204,7 +217,7 @@ docker logs --since 0s interop-infrastructure-db-1 --tail 200
 
 - If ports are already in use on the host, edit `docker-compose.yml` to remap host ports.
 
-<a id="sec-13-component-readmes"></a>
+<a id="sec-9-component-readmes"></a>
 ## 9. Component READMEs
 
 This repository contains a few services each with their own README. The admin GUI (`admin-web`) can list and render these READMEs in the right-hand pane.
@@ -263,7 +276,7 @@ docker compose -f docker-compose.yml up --build -d
 ```
 
 
-<a id="sec-14-next-steps-and-suggestions"></a>
+<a id="sec-12-next-steps-and-suggestions"></a>
 ## 12. Next steps and suggestions
 
  - To inspect logs:

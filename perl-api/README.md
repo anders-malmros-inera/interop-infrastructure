@@ -1,8 +1,9 @@
-﻿# Index
+﻿[1. Build and run locally](#sec-1-build-and-run-locally)
 
-- 1. Build and run locally  [â†©](#sec-1-build-and-run-locally)
-- 2. Example endpoints  [â†©](#sec-2-example-endpoints)
-- 3. Environment variables  [â†©](#sec-3-environment-variables)
+[2. Example endpoints](#sec-2-example-endpoints)
+
+[3. Environment variables](#sec-3-environment-variables)
+
 
 <a id="doc-perl-api-for-service-catalog"></a>
 # Perl API for Service Catalog

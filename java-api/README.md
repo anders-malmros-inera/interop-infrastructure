@@ -1,9 +1,11 @@
-﻿# Index
+﻿[1. Overview](#sec-1-overview)
 
-- 1. Overview  [â†©](#sec-1-overview)
-- 2. Build and run with Docker  [â†©](#sec-2-build-and-run-with-docker)
-- 3. docker-compose note  [â†©](#sec-3-docker-compose-note)
-- 4. Endpoints  [â†©](#sec-4-endpoints)
+[2. Build and run with Docker](#sec-2-build-and-run-with-docker)
+
+[3. docker-compose note](#sec-3-docker-compose-note)
+
+[4. Endpoints](#sec-4-endpoints)
+
 
 <a id="doc-java-api-spring-boot-for-service-catalog"></a>
 # Java API (Spring Boot) for Service Catalog
