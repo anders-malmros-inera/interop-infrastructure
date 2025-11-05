@@ -1,4 +1,7 @@
 ﻿
+
+
+
 <a id="doc-serve-openapi-service-catalog-with-docker"></a>
 # Serve OpenAPI (service-catalog) with Docker
 

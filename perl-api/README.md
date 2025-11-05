@@ -4,6 +4,8 @@
 
 [3. Environment variables](#sec-3-environment-variables)
 
+[4. Information model (pre-rendered)](#sec-4-information-model-pre-rendered)
+
 
 <a id="doc-perl-api-for-service-catalog"></a>
 # Perl API for Service Catalog
@@ -37,3 +39,17 @@ The API will listen on port 5000. Example endpoints:
 
 Environment variables used for DB connection:
 - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
+
+<a id="sec-4-information-model-pre-rendered"></a>
+## 4. Information model (pre-rendered)
+
+Below is the API information model rendered to SVG. The image is pre-rendered and checked into the repository so it displays even when Mermaid is not supported by your viewer.
+
+![Information model (pre-rendered)](docs/images/info-model.svg)
+
+To regenerate the SVG from the Mermaid source (`perl-api/docs/info-model.mmd`) run the repository helper:
+
+```powershell
+.
+\scripts\render-mermaid.ps1
+```

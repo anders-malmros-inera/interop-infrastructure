@@ -6,6 +6,8 @@
 
 [4. Endpoints](#sec-4-endpoints)
 
+[5. Information model (pre-rendered)](#sec-5-information-model-pre-rendered)
+
 
 <a id="doc-java-api-spring-boot-for-service-catalog"></a>
 # Java API (Spring Boot) for Service Catalog
@@ -41,3 +43,16 @@ Endpoints mirror the OpenAPI minimal surface:
 - PUT /apis/{id}
 - DELETE /apis/{id}
 - GET /sync/apis (basic filter)
+
+<a id="sec-5-information-model-pre-rendered"></a>
+## 5. Information model (pre-rendered)
+
+A pre-rendered SVG of the Java API information model is included below. The image is rendered from the Mermaid source and committed so it displays in plain Markdown viewers.
+
+![Information model (pre-rendered)](docs/images/info-model.svg)
+
+To regenerate the diagram from source (`java-api/docs/info-model.mmd`) use the repo helper:
+
+```powershell
+.\scripts\render-mermaid.ps1
+```
