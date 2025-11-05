@@ -69,7 +69,13 @@ for ($i=0; $i -lt $lines.Length; $i++) {
     if ($ln -match '^[ \t]*(`{3,}|~{3,})') { $inCode = -not $inCode; $out2 += $ln; continue }
     if ($inCode) { $out2 += $ln; continue }
     if ($ln -match '^(?<hash>#{1,6}\s*)(?<num>[0-9]+(\.[0-9]+)*\.\s*)(?<rest>.*)$') {
-        $new = $Matches['hash'] + $Matches['rest']
+        # Remove the leading numeric prefix(s). Some files contain duplicated prefixes like
+        # "1. 1 Files of interest" — remove all initial numeric blocks (e.g. "1.", "1.1.")
+        $rest = $Matches['rest']
+    # strip any number blocks at the start of the rest (one or more occurrences)
+    # handle forms like: "1", "1.", "1.2", "1.2.", and repeated sequences like "1. 1", "1.1. 2"
+    $rest = $rest -replace '^[ \t]*(?:[0-9]+(?:\.[0-9]+)*(?:\.)?\s*)+', ''
+        $new = $Matches['hash'] + $rest
         $out2 += $new
     }
     else { $out2 += $ln }

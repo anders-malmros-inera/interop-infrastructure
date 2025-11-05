@@ -1,16 +1,39 @@
-﻿# Interop-infrastructure — local development
+﻿# Index
+
+- 1. Prerequisites  [â†©](#sec-1-prerequisites)
+- 2. What the compose stack provides  [â†©](#sec-2-what-the-compose-stack-provides)
+- 3. Port mappings (host -> container)  [â†©](#sec-3-port-mappings-host-container)
+- 4. Quick start (PowerShell)  [â†©](#sec-4-quick-start-powershell)
+- 5. Health & verification  [â†©](#sec-5-health-verification)
+- 6. Database credentials (development)  [â†©](#sec-6-database-credentials-development)
+- 7. Troubleshooting  [â†©](#sec-7-troubleshooting)
+- 8. Component READMEs  [â†©](#sec-8-component-readmes)
+- 9. Admin-web additional notes  [â†©](#sec-9-admin-web-additional-notes)
+- 10. Next steps and suggestions  [â†©](#sec-10-next-steps-and-suggestions)
+- 11. Integration tests & recent fix  [â†©](#sec-11-integration-tests-recent-fix)
+- 12. # 11.1. Root cause  [â†©](#sec-12-11-1-root-cause)
+- 13. # 11.2. Fix applied  [â†©](#sec-13-11-2-fix-applied)
+- 14. # 11.3. How to rebuild and run the integration tests  [â†©](#sec-14-11-3-how-to-rebuild-and-run-the-integration-tests)
+- 15. # 11.4. Notes about create responses  [â†©](#sec-15-11-4-notes-about-create-responses)
+- 16. # 11.5. Status  [â†©](#sec-16-11-5-status)
+- 17. # 11.6. Suggested follow-ups  [â†©](#sec-17-11-6-suggested-follow-ups)
+
+<a id="doc-interop-infrastructure-local-development"></a>
+# Interop-infrastructure — local development
 
 This repository contains a small local development stack for the Service Catalog / API interoperability examples used in this workspace.
 
 This README explains how to build and run the services with Docker Compose, the ports used, and quick troubleshooting tips.
 
-## 1 Prerequisites
+<a id="sec-1-prerequisites"></a>
+## 1. Prerequisites
 
 - Docker Desktop (or Docker Engine) installed and running
 - Docker Compose (v2) — available via the `docker compose` command
 - On Windows, PowerShell is used in the examples below
 
-## 2 What the compose stack provides
+<a id="sec-2-what-the-compose-stack-provides"></a>
+## 2. What the compose stack provides
 
 The top-level `docker-compose.yml` (in this folder) starts the following services:
 
@@ -24,7 +47,8 @@ Notes:
 - Both the Perl and Java APIs are configured to use the same Postgres service `db` (DB host `db` inside the compose network). There used to be a second Postgres entry in the file; it has been removed to avoid confusion.
 The `openapi` service is DMZ-only and served via Kong at `/openapi` (no direct host port is published by the top-level compose).
 
-## 3 Port mappings (host -> container)
+<a id="sec-3-port-mappings-host-container"></a>
+## 3. Port mappings (host -> container)
 
 When running with Kong as the public gateway (recommended):
 
@@ -39,7 +63,8 @@ Container/internal ports:
 - 80   -> openapi static UI (container)
 - 5432 -> Postgres (DB used by the APIs)
 
-## 4 Quick start (PowerShell)
+<a id="sec-4-quick-start-powershell"></a>
+## 4. Quick start (PowerShell)
 
 From the repository root:
 
@@ -60,7 +85,8 @@ If you have old/renamed services left from a previous compose file, remove orpha
 docker compose -f docker-compose.yml down --remove-orphans
 ```
 
-## 5 Health & verification
+<a id="sec-5-health-verification"></a>
+## 5. Health & verification
 
 Check containers:
 
@@ -78,7 +104,8 @@ Notes:
 - The Perl API container is named `perl-api-1` (see `container_name` in `docker-compose.yml`). Use that name when you want to target the container directly.
 - The Java API now exposes `/_ping` as well (added to the codebase) so both services have a consistent health endpoint.
 
-## 6 Database credentials (development)
+<a id="sec-6-database-credentials-development"></a>
+## 6. Database credentials (development)
 
 - DB name: `service_catalog`
 - DB user: `svcuser`
@@ -87,7 +114,8 @@ Notes:
 
 If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.
 
-## 7 Troubleshooting
+<a id="sec-7-troubleshooting"></a>
+## 7. Troubleshooting
 
 - If build fails due to missing directories referenced by the compose file (for example `service-catalog` or `admin-runner`), either add those directories or remove/comment the related services in `docker-compose.yml`.
 - To inspect logs:
@@ -100,7 +128,8 @@ docker logs --since 0s interop-infrastructure-db-1 --tail 200
 
 - If ports are already in use on the host, edit `docker-compose.yml` to remap host ports.
 
-## 8 Component READMEs
+<a id="sec-8-component-readmes"></a>
+## 8. Component READMEs
 
 This repository contains a few services each with their own README. The admin GUI (`admin-web`) can list and render these READMEs in the right-hand pane.
 
@@ -113,7 +142,8 @@ Links to component READMEs in this repository:
 
 If you add more components with README files at the top level, the admin GUI will automatically detect and list them.
 
-## 9 Admin-web additional notes
+<a id="sec-9-admin-web-additional-notes"></a>
+## 9. Admin-web additional notes
 
 - New health-check endpoint: `GET /api/health-check` — verifies that Kong has the `/federation` route configured and that the federation service responds to `/_ping` and `/members`. When running the stack with Kong as gateway this is reachable at `http://localhost:8080/api/health-check`.
 
@@ -130,7 +160,8 @@ docker cp $cid:/workspace/admin-web/test-results.xml .\test-results.xml
 
 Note: the admin-web also exposes `/api/readmes` and `/readme?container=<id>` which are used by the UI to render component README pages inside the app.
 
-## 10 Next steps and suggestions
+<a id="sec-10-next-steps-and-suggestions"></a>
+## 10. Next steps and suggestions
 
 - Add `healthcheck` entries for the `api` and `java-api` services for stronger depends_on semantics.
 - Remove orphan containers if you don't need them:
@@ -144,17 +175,21 @@ docker compose -f docker-compose.yml down --remove-orphans
 
 If you want, I can add healthchecks for the two APIs in `docker-compose.yml` and remove orphan containers — tell me which you'd like me to do next.
 
-## 11 Integration tests & recent fix
+<a id="sec-11-integration-tests-recent-fix"></a>
+## 11. Integration tests & recent fix
 
 While expanding the `admin-web` integration test-runner to perform full CRUD tests, a failure was observed when creating (POST) entries against the Perl API: the DB error showed NULL values for required columns (for example `logical_address`).
 
-### Root cause
+<a id="sec-12-11-1-root-cause"></a>
+## 12. # 11.1. Root cause
 - The Perl Dancer2 POST/PUT handlers were using `body_parameters->as_hashref`, which did not reliably decode nested JSON objects in the request body (forms vs JSON). This caused nested fields such as `organization` and `accessModel` to be lost, resulting in NULL columns when inserting into Postgres.
 
-### Fix applied
+<a id="sec-13-11-2-fix-applied"></a>
+## 13. # 11.2. Fix applied
 - The Perl handlers for `POST /apis` and `PUT /apis/:id` now explicitly decode the raw JSON request body using `JSON::MaybeXS::decode_json` before passing the payload to the model. This preserves nested objects and prevents NULLs for required columns.
 
-### How to rebuild and run the integration tests
+<a id="sec-14-11-3-how-to-rebuild-and-run-the-integration-tests"></a>
+## 14. # 11.3. How to rebuild and run the integration tests
 - Rebuild the Perl API image (so the code changes take effect):
 
 ```powershell
@@ -176,14 +211,17 @@ Invoke-RestMethod -Uri 'http://localhost:8080/admin/api/run-tests' -UseBasicPars
 
 (This calls the test-runner via Kong. If you expose the admin-web host port directly you can also call `http://localhost:8082/api/run-tests`.)
 
-### Notes about create responses
+<a id="sec-15-11-4-notes-about-create-responses"></a>
+## 15. # 11.4. Notes about create responses
 - The Perl API returns the created id as JSON: `{ "id": "..." }`.
 - The Java API returns the created id as plain text. The test-runner is tolerant of both formats.
 
-### Status
+<a id="sec-16-11-5-status"></a>
+## 16. # 11.5. Status
 - After the fix the admin-web test-runner shows successful CRUD sequences for both Perl and Java (POST → GET → PUT → GET → DELETE → GET).
 
-### Suggested follow-ups
+<a id="sec-17-11-6-suggested-follow-ups"></a>
+## 17. # 11.6. Suggested follow-ups
 - Add request validation in the Perl model to return clearer 4xx responses for missing required fields.
 - Standardize the create-response format (either always JSON with `{ id: ... }` or always plain text) to simplify clients and tests.
 - ## 1.12 Summary
