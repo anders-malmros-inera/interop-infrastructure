@@ -43,6 +43,18 @@ This README explains how to build and run the services with Docker Compose, the 
 
 When the compose stack runs with Kong enabled the public entrypoint is Kong on the host. By default the compose in this repo publishes Kong's proxy on host port 8080 (HTTP) and 8443 (HTTPS), and the Kong Admin API on 8001 (optional).
 
+Below is a pre-rendered component diagram (services & ports) generated from `diagram.mmd`. The committed
+SVG is available at `admin-web/public/diagram.svg` so it displays in plain Markdown viewers.
+
+![Component diagram (services & ports)](admin-web/public/diagram.svg)
+
+To regenerate the SVG locally (uses the renderer container), run:
+
+```powershell
+.\scripts\render-diagram.ps1
+```
+
+
 Common Kong routes configured by the stack (defaults):
 
 - http://localhost:8080/admin  -> admin-web UI and static assets
