@@ -181,7 +181,6 @@ for ($i = 0; $i -lt $origLines.Length; $i++) {
                 # If this file has a single top-level header, and this header is level-2 (i.e. '##'),
                 # emit flat numbering 1.,2.,3. based on encountered order rather than hierarchical prefix.
                 if ($top1Count -eq 1 -and $Matches[1].Length -eq 2) {
-                    Write-Host "DEBUG: emitting flat level-2 counter at line $i"
                     $top2Counter = $top2Counter + 1
                     $display = $top2Counter.ToString() + '.'
                 }
@@ -320,10 +319,5 @@ if ($DryRun) {
     }
 }
 else {
-    # backup then write
-    Copy-Item -Path $File -Destination ($File + '.bak') -Force
     Set-Content -Path $File -Value ($final -join "`n") -Encoding utf8
-    Write-Host "Wrote: $File (backup: $File.bak)"
 }
-
-Write-Host "Done."

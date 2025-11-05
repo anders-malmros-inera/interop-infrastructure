@@ -146,10 +146,6 @@ if ($DryRun) {
     Write-Host "----- end preview (total lines: $($lines.Length)) -----"
 }
 else {
-    # Write a backup then overwrite
-    Copy-Item -Path $File -Destination ($File + '.bak') -Force
     Set-Content -Path $File -Value ($lines -join "`n") -Encoding utf8
-    Write-Host "Wrote: $File (backup: $File.bak)"
 }
 
-Write-Host "Done."
