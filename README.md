@@ -1,4 +1,7 @@
 ﻿# 1. interop-infrastructure - local development
+# 1. interop-infrastructure - local development
+<a id="sec-2-interop-infrastructure---local-development"></a>
+# 2. interop-infrastructure - local development
 
 This repository contains a small local development stack for the Service Catalog / API interoperability examples used in this workspace.
 
@@ -6,7 +9,8 @@ Public access is routed through a single API gateway (Kong) in DB-less, declarat
 
 This README explains how to build and run the services with Docker Compose, the ports used, and quick troubleshooting tips.
 
-## 1.1. Kong gateway — routes & usage
+<a id="sec-2-1-kong-gateway--routes--usage"></a>
+## 2.1. Kong gateway — routes & usage
 
 When the compose stack runs with Kong enabled the public entrypoint is Kong on the host. By default the compose in this repo publishes Kong's proxy on host port 8080 (HTTP) and 8443 (HTTPS), and the Kong Admin API on 8001 (optional).
 
@@ -54,13 +58,15 @@ Notes:
  - If the UI's Run Tests button still fails in the browser, open the developer console and look for failed fetches to `/api` or `/readme` — Kong should forward those intact to the admin-web service.
 
 
-## 1.2. Prerequisites
+<a id="sec-2-2-prerequisites"></a>
+## 2.2. Prerequisites
 
 - Docker Desktop (or Docker Engine) installed and running
 - Docker Compose (v2) - available via the `docker compose` command
 - On Windows, PowerShell is used in the examples below
 
-## 1.3. What the compose stack provides
+<a id="sec-2-3-what-the-compose-stack-provides"></a>
+## 2.3. What the compose stack provides
 
 The top-level `docker-compose.yml` (in this folder) starts the following services:
 
@@ -77,7 +83,8 @@ Notes:
  
 Note: older convenience/dev compose files (for example `docker-compose.dev.yml` and `docker-compose.perl-api.yml`) previously exposed service ports for direct host access. These files have been updated to remove `ports:` mappings so services are only reachable via Kong. If you intentionally need direct host access for development, you can re-add `ports:` to a local copy of those files, but prefer the top-level compose with Kong for security.
 
-## 1.4. Port mappings (host -> container)
+<a id="sec-2-4-port-mappings-host---container"></a>
+## 2.4. Port mappings (host -> container)
 
 When running with Kong as the public gateway (recommended):
 
@@ -94,7 +101,8 @@ Container/internal ports (service-to-service):
 
 Note: individual services are attached to `dmz` or `backend` networks and are not required to expose host ports when Kong is used. If you prefer direct host access for a service, edit `docker-compose.yml` to map the host port explicitly.
 
-## 1.5. Quick start (PowerShell)
+<a id="sec-2-5-quick-start-powershell"></a>
+## 2.5. Quick start (PowerShell)
 
 From the repository root:
 
@@ -115,7 +123,8 @@ If you have old/renamed services left from a previous compose file, remove orpha
 docker compose -f docker-compose.yml down --remove-orphans
 ```
 
-## 1.6. Health & verification
+<a id="sec-2-6-health--verification"></a>
+## 2.6. Health & verification
 
 Check containers:
 
@@ -155,7 +164,8 @@ Invoke-RestMethod -Uri 'http://localhost:8080/perl/apis?logicalAddress=SE1611&in
 Invoke-RestMethod -Uri 'http://localhost:8080/java/apis?logicalAddress=SE1611&interoperabilitySpecificationId=remissV1' -UseBasicParsing
 ```
 
-## 1.7. Database credentials (development)
+<a id="sec-2-7-database-credentials-development"></a>
+## 2.7. Database credentials (development)
 
 - DB name: `service_catalog`
 - DB user: `svcuser`
@@ -164,7 +174,8 @@ Invoke-RestMethod -Uri 'http://localhost:8080/java/apis?logicalAddress=SE1611&in
 
 If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.
 
-## 1.8. Troubleshooting
+<a id="sec-2-8-troubleshooting"></a>
+## 2.8. Troubleshooting
 
 - If build fails due to missing directories referenced by the compose file (for example `service-catalog` or `admin-runner`), either add those directories or remove/comment the related services in `docker-compose.yml`.
 - To inspect logs:
@@ -177,7 +188,8 @@ docker logs --since 0s interop-infrastructure-db-1 --tail 200
 
 - If ports are already in use on the host, edit `docker-compose.yml` to remap host ports.
 
-## 1.9. Component READMEs
+<a id="sec-2-9-component-readmes"></a>
+## 2.9. Component READMEs
 
 This repository contains a few services each with their own README. The admin GUI (`admin-web`) can list and render these READMEs in the right-hand pane.
 
@@ -191,7 +203,8 @@ Links to component READMEs in this repository:
 
 If you add more components with README files at the top level, the admin GUI will automatically detect and list them.
 
-## 1.10. Migrations & helper scripts
+<a id="sec-2-10-migrations--helper-scripts"></a>
+## 2.10. Migrations & helper scripts
 
 This repository includes an idempotent migration mechanism and a couple of small helper scripts to make local development and upgrades smoother.
 
@@ -214,7 +227,8 @@ cd C:\dev\workspace\interop-infrastructure
 .\scripts\reload-kong.ps1
 ```
 
-## 1.11. Recent changes (short)
+<a id="sec-2-11-recent-changes-short"></a>
+## 2.11. Recent changes (short)
 
 The stack has received a few small updates improving the test-runner and developer workflows. Key items:
 
@@ -233,7 +247,8 @@ docker compose -f docker-compose.yml up --build -d
 ```
 
 
-## 1.12. Next steps and suggestions
+<a id="sec-2-12-next-steps-and-suggestions"></a>
+## 2.12. Next steps and suggestions
 
  - To inspect logs:
 
@@ -245,7 +260,8 @@ docker logs --since 0s interop-infrastructure-db-1 --tail 200
 
  - If ports are already in use on the host, edit `docker-compose.yml` to remap host ports.
 
-## 1.13. Component READMEs
+<a id="sec-2-13-component-readmes"></a>
+## 2.13. Component READMEs
 
 This repository contains a few services each with their own README. The admin GUI (`admin-web`) can list and render these READMEs in the right-hand pane.
 
@@ -258,7 +274,8 @@ Links to component READMEs in this repository:
 
 If you add more components with README files at the top level, the admin GUI will automatically detect and list them.
 
-## 1.14. Next steps and suggestions
+<a id="sec-2-14-next-steps-and-suggestions"></a>
+## 2.14. Next steps and suggestions
 
  - Add `healthcheck` entries for the `api` and `java-api` services for stronger depends_on semantics.
  - Remove orphan containers if you don't need them:
@@ -276,7 +293,8 @@ Security note — Kong admin API
 
 If you want, I can add healthchecks for the two APIs in `docker-compose.yml` and remove orphan containers — tell me which you'd like me to do next.
 
-## 1.15. Integration tests & recent fix
+<a id="sec-2-15-integration-tests--recent-fix"></a>
+## 2.15. Integration tests & recent fix
 
 While expanding the `admin-web` integration test-runner to perform full CRUD tests, a failure was observed when creating (POST) entries against the Perl API: the DB error showed NULL values for required columns (for example `logical_address`).
 

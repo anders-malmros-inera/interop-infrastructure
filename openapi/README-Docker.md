@@ -1,7 +1,11 @@
 ﻿# 1. <a id="sec-1-openapi-docker"></a>
-# 2. Serve OpenAPI (service-catalog) with Docker
+# 1. <a id="sec-1-openapi-docker"></a>
+<a id="sec-2-a-idsec-1-openapi-dockera"></a>
+<a id="sec-3-serve-openapi-service-catalog-with-docker"></a>
+# 3. Serve OpenAPI (service-catalog) with Docker
 
-## 2.1. Index
+<a id="sec-3-1-index"></a>
+## 3.1. Index
 
 - [1. Serve OpenAPI (service-catalog) with Docker](#sec-1-openapi-docker)
 - [1.1 Files](#sec-1-1-files)
