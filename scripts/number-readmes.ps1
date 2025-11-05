@@ -28,6 +28,8 @@ foreach ($f in $files) {
     $inCodeBlock = $false
     # collect mapping of old anchor -> new anchor for updating internal links
     $anchorMap = @{}
+    # collect mapping of explicit anchor id lines (e.g. <a id="sec-1-..."></a>)
+    $anchorIdMap = @{}
 
     for ($i=0; $i -lt $lines.Length; $i++) {
         $line = $lines[$i]
@@ -79,6 +81,30 @@ foreach ($f in $files) {
             $newSlug = & $ToSlug $newTitle
             if ($oldSlug -and ($oldSlug -ne $newSlug)) {
                 $anchorMap[$oldSlug] = $newSlug
+            }
+
+            # build numeric prefix for anchor id from counters, e.g. '1-2-3'
+            $numParts = @()
+            for ($p=0; $p -lt $level; $p++) { $numParts += $counters[$p].ToString() }
+            $numPrefix = ($numParts -join '-')
+            $slugPart = $newSlug
+            if (-not $slugPart) { $slugPart = $oldSlug }
+            if (-not $slugPart) { $slugPart = 'section' }
+            $newAnchorId = "sec-$numPrefix-$slugPart"
+
+            # if previous line is an explicit anchor tag, replace it and record mapping
+            if ($i -gt 0 -and ($lines[$i-1] -match '<a\s+id="(?<id>[^"]+)"\s*>\s*</a>')) {
+                $oldAnchorId = $Matches['id']
+                if ($oldAnchorId -and ($oldAnchorId -ne $newAnchorId)) { $anchorIdMap[$oldAnchorId] = $newAnchorId }
+                $lines[$i-1] = '<a id="' + $newAnchorId + '"></a>'
+            }
+            else {
+                # insert new anchor line before the header
+                $before = $lines[0..($i-1)]
+                $after = $lines[$i..($lines.Length-1)]
+                $lines = $before + @('<a id="' + $newAnchorId + '"></a>') + $after
+                # advance index to skip the inserted anchor
+                $i += 1
             }
 
             $lines[$i] = $newLine
