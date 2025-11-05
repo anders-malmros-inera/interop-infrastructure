@@ -1,13 +1,13 @@
-# service-catalog-db
+﻿# service-catalog-db
+
+## 1 Files of interest
 
 This folder builds the Postgres image used by the development stack and contains database initialization and migrations.
-
-Files of interest
 
 - `init.sql` — initialization SQL executed by the official Postgres image when a fresh data directory is created (applies only when the Postgres container starts with an empty volume). Put initial schema and seed data here.
 - `migrations/` — idempotent SQL migrations that can be applied to an existing database instance. These are NOT automatically executed by the Postgres image for an existing (non-empty) volume. Place additive migrations here (use `CREATE TABLE IF NOT EXISTS` and `ALTER TABLE` statements where appropriate).
 
-Applying migrations
+## 2 Applying migrations
 
 For existing DB volumes, use the helper script in `scripts/apply-db-migrations.ps1` to copy and execute migration SQL files against the running DB container:
 
@@ -23,7 +23,7 @@ docker compose -f docker-compose.yml down -v
 docker compose -f docker-compose.yml up --build -d
 ```
 
-Migration guidelines
+## 3 Migration guidelines
 
 - Keep migrations small and additive.
 - Prefer `CREATE TABLE IF NOT EXISTS` for new tables and `ALTER TABLE` for schema changes.

@@ -1,23 +1,8 @@
-﻿# 1. <a id="sec-1-openapi-docker"></a>
-# 1. <a id="sec-1-openapi-docker"></a>
-<a id="sec-2-a-idsec-1-openapi-dockera"></a>
-<a id="sec-3-a-idsec-1-openapi-dockera"></a>
-# 3. <a id="sec-1-openapi-docker"></a>
-<a id="sec-2-a-idsec-1-openapi-dockera"></a>
-<a id="sec-4-a-idsec-1-openapi-dockera"></a>
-# 4. <a id="sec-1-openapi-docker"></a>
-<a id="sec-2-a-idsec-1-openapi-dockera"></a>
-<a id="sec-5-serve-openapi-service-catalog-with-docker"></a>
-# 5. Serve OpenAPI (service-catalog) with Docker
-
-<a id="sec-5-1-index"></a>
-## 5.1. Index
-
-- [1. Serve OpenAPI (service-catalog) with Docker](#sec-1-openapi-docker)
-- [1.1 Files](#sec-1-1-files)
-- [1.2 Build and run (PowerShell)](#sec-1-2-build-and-run)
-- [1.3 docker-compose](#sec-1-3-docker-compose)
-- [1.4 Notes](#sec-1-4-notes)
+﻿# <a id="sec-1-openapi-docker"></a>
+# <a id="sec-1-openapi-docker"></a>
+# <a id="sec-1-openapi-docker"></a>
+# <a id="sec-1-openapi-docker"></a>
+# Serve OpenAPI (service-catalog) with Docker
 
 This folder contains the OpenAPI spec and a simple Docker setup to serve the static files using nginx.
 

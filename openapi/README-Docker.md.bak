@@ -1,3 +1,7 @@
+﻿# <a id="sec-1-openapi-docker"></a>
+# <a id="sec-1-openapi-docker"></a>
+# <a id="sec-1-openapi-docker"></a>
+# <a id="sec-1-openapi-docker"></a>
 # Serve OpenAPI (service-catalog) with Docker
 
 This folder contains the OpenAPI spec and a simple Docker setup to serve the static files using nginx.
@@ -11,7 +15,7 @@ Files:
 PowerShell: build and run with Docker CLI
 
 ```powershell
-# from this folder (openapi)
+# 3. from this folder (openapi)
 docker build -t interop-openapi:latest .
 docker run --rm -p 8080:80 interop-openapi:latest
 ```
@@ -19,7 +23,7 @@ docker run --rm -p 8080:80 interop-openapi:latest
 Or use docker-compose (recommended for quick runs):
 
 ```powershell
-# from this folder (openapi)
+# 4. from this folder (openapi)
 docker-compose up --build
 ```
 
