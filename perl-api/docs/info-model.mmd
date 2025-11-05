@@ -1,0 +1,29 @@
+```mmd
+erDiagram
+    API_INSTANCE {
+        UUID id
+        TEXT logicalAddress
+        TEXT interoperabilitySpecificationId
+        TEXT apiStandard
+        TEXT url
+        TEXT status
+        TEXT signature
+        TIMESTAMP createdAt
+        TIMESTAMP updatedAt
+    }
+
+    ORGANIZATION {
+        TEXT id
+        TEXT name
+    }
+
+    ACCESS_MODEL {
+        TEXT type
+        TEXT metadataUrl
+    }
+
+    API_INSTANCE ||--o{ ORGANIZATION: "belongs_to"
+    API_INSTANCE ||--o{ ACCESS_MODEL: "has"
+```
+
+<!-- Source: prerender with mermaid-cli (mmdc). See README for regenerate steps -->

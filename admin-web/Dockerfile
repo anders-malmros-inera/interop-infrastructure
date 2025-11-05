@@ -23,6 +23,10 @@ COPY perl-api/README.md ./perl-api/README.md
 COPY java-api/README.md ./java-api/README.md
 COPY perl-federation/README.md ./perl-federation/README.md
 COPY openapi ./openapi
+# Copy pre-rendered docs/images so admin-web can serve README-linked assets
+COPY perl-api/docs ./perl-api/docs
+COPY java-api/docs ./java-api/docs
+COPY perl-federation/docs ./perl-federation/docs
 
 EXPOSE 3000
 

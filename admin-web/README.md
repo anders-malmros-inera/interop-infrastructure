@@ -1,5 +1,5 @@
-<a id="index"></a>
-# Index
+﻿<a id="index"></a>
+# 1. Index
 
 1. [Interop overview](#sec-1-interop-overview)
 1.1. [Prerequisites](#sec-1-1-prerequisites)
@@ -15,21 +15,21 @@
 1.11. [Integration tests & recent fix](#sec-1-11-tests)
 
 <a id="sec-1-interop-overview"></a>
-# 1. Interop-infrastructure — local development
+# 2. Interop-infrastructure — local development
 
 This repository contains a small local development stack for the Service Catalog / API interoperability examples used in this workspace.
 
 This README explains how to build and run the services with Docker Compose, the ports used, and quick troubleshooting tips.
 
 <a id="sec-1-1-prerequisites"></a>
-## 1.1 Prerequisites
+## 2.1. 1 Prerequisites
 
 - Docker Desktop (or Docker Engine) installed and running
 - Docker Compose (v2) — available via the `docker compose` command
 - On Windows, PowerShell is used in the examples below
 
 <a id="sec-1-2-compose-stack"></a>
-## 1.2 What the compose stack provides
+## 2.2. 2 What the compose stack provides
 
 The top-level `docker-compose.yml` (in this folder) starts the following services:
 
@@ -44,7 +44,7 @@ Notes:
 The `openapi` service is DMZ-only and served via Kong at `/openapi` (no direct host port is published by the top-level compose).
 
 <a id="sec-1-3-ports"></a>
-## 1.3 Port mappings (host -> container)
+## 2.3. 3 Port mappings (host -> container)
 
 When running with Kong as the public gateway (recommended):
 
@@ -60,7 +60,7 @@ Container/internal ports:
 - 5432 -> Postgres (DB used by the APIs)
 
 <a id="sec-1-4-quick-start"></a>
-## 1.4 Quick start (PowerShell)
+## 2.4. 4 Quick start (PowerShell)
 
 From the repository root:
 
@@ -82,7 +82,7 @@ docker compose -f docker-compose.yml down --remove-orphans
 ```
 
 <a id="sec-1-5-health"></a>
-## 1.5 Health & verification
+## 2.5. 5 Health & verification
 
 Check containers:
 
@@ -101,7 +101,7 @@ Notes:
 - The Java API now exposes `/_ping` as well (added to the codebase) so both services have a consistent health endpoint.
 
 <a id="sec-1-6-db"></a>
-## 1.6 Database credentials (development)
+## 2.6. 6 Database credentials (development)
 
 - DB name: `service_catalog`
 - DB user: `svcuser`
@@ -111,7 +111,7 @@ Notes:
 If you need to connect from the host (psql), you can use the mapped host port (5432) and the same credentials.
 
 <a id="sec-1-7-troubleshooting"></a>
-## 1.7 Troubleshooting
+## 2.7. 7 Troubleshooting
 
 - If build fails due to missing directories referenced by the compose file (for example `service-catalog` or `admin-runner`), either add those directories or remove/comment the related services in `docker-compose.yml`.
 - To inspect logs:
@@ -125,7 +125,7 @@ docker logs --since 0s interop-infrastructure-db-1 --tail 200
 - If ports are already in use on the host, edit `docker-compose.yml` to remap host ports.
 
 <a id="sec-1-8-components"></a>
-## 1.8 Component READMEs
+## 2.8. 8 Component READMEs
 
 This repository contains a few services each with their own README. The admin GUI (`admin-web`) can list and render these READMEs in the right-hand pane.
 
@@ -139,17 +139,17 @@ Links to component READMEs in this repository:
 If you add more components with README files at the top level, the admin GUI will automatically detect and list them.
 
 <a id="sec-1-9-admin-notes"></a>
-## 1.9 Admin-web additional notes
+## 2.9. 9 Admin-web additional notes
 
 - New health-check endpoint: `GET /api/health-check` — verifies that Kong has the `/federation` route configured and that the federation service responds to `/_ping` and `/members`. When running the stack with Kong as gateway this is reachable at `http://localhost:8080/api/health-check`.
 
 - Running tests and JUnit output: the admin-web `GET /api/run-tests` endpoint runs the integration test-suite (same as the UI Run Tests) and can produce a JUnit XML when `?junit=1` is passed. The test-runner also saves a JSON summary of results inside the container; when executed via the public Kong proxy the saved JSON can be copied from the admin-web container if needed. Example flow to write and fetch JUnit from the running admin-web container:
 
 ```powershell
-# run tests and ask for junit
+# 3. run tests and ask for junit
 Invoke-RestMethod -Uri 'http://localhost:8080/api/run-tests?junit=1' -UseBasicParsing
 
-# copy junit to host
+# 4. copy junit to host
 $cid = docker compose -f docker-compose.yml ps -q admin-web
 docker cp $cid:/workspace/admin-web/test-results.xml .\test-results.xml
 ```
@@ -157,7 +157,7 @@ docker cp $cid:/workspace/admin-web/test-results.xml .\test-results.xml
 Note: the admin-web also exposes `/api/readmes` and `/readme?container=<id>` which are used by the UI to render component README pages inside the app.
 
 <a id="sec-1-10-next"></a>
-## 1.10 Next steps and suggestions
+## 2.10. 10 Next steps and suggestions
 
 - Add `healthcheck` entries for the `api` and `java-api` services for stronger depends_on semantics.
 - Remove orphan containers if you don't need them:
@@ -172,17 +172,17 @@ docker compose -f docker-compose.yml down --remove-orphans
 If you want, I can add healthchecks for the two APIs in `docker-compose.yml` and remove orphan containers — tell me which you'd like me to do next.
 
 <a id="sec-1-11-tests"></a>
-## 1.11 Integration tests & recent fix
+## 2.11. 11 Integration tests & recent fix
 
 While expanding the `admin-web` integration test-runner to perform full CRUD tests, a failure was observed when creating (POST) entries against the Perl API: the DB error showed NULL values for required columns (for example `logical_address`).
 
-### Root cause
+### 2.11.1. Root cause
 - The Perl Dancer2 POST/PUT handlers were using `body_parameters->as_hashref`, which did not reliably decode nested JSON objects in the request body (forms vs JSON). This caused nested fields such as `organization` and `accessModel` to be lost, resulting in NULL columns when inserting into Postgres.
 
-### Fix applied
+### 2.11.2. Fix applied
 - The Perl handlers for `POST /apis` and `PUT /apis/:id` now explicitly decode the raw JSON request body using `JSON::MaybeXS::decode_json` before passing the payload to the model. This preserves nested objects and prevents NULLs for required columns.
 
-### How to rebuild and run the integration tests
+### 2.11.3. How to rebuild and run the integration tests
 - Rebuild the Perl API image (so the code changes take effect):
 
 ```powershell
@@ -204,14 +204,14 @@ Invoke-RestMethod -Uri 'http://localhost:8080/admin/api/run-tests' -UseBasicPars
 
 (This calls the test-runner via Kong. If you expose the admin-web host port directly you can also call `http://localhost:8082/api/run-tests`.)
 
-### Notes about create responses
+### 2.11.4. Notes about create responses
 - The Perl API returns the created id as JSON: `{ "id": "..." }`.
 - The Java API returns the created id as plain text. The test-runner is tolerant of both formats.
 
-### Status
+### 2.11.5. Status
 - After the fix the admin-web test-runner shows successful CRUD sequences for both Perl and Java (POST → GET → PUT → GET → DELETE → GET).
 
-### Suggested follow-ups
+### 2.11.6. Suggested follow-ups
 - Add request validation in the Perl model to return clearer 4xx responses for missing required fields.
 - Standardize the create-response format (either always JSON with `{ id: ... }` or always plain text) to simplify clients and tests.
 - ## 1.12 Summary

@@ -175,9 +175,9 @@ app.get('/readme', (req, res) => {
       folderMap.set(it.id.toLowerCase(), it);
     }
 
-    // Rewrite anchor hrefs that point to README files so they open the admin-web /readme?container=... endpoint
+  // Rewrite anchor hrefs that point to README files so they open the admin-web /readme?container=... endpoint
     // Preserve fragments (anchors) and query parts
-    html = html.replace(/<a\s+([^>]*?)href=("|')([^"']+)("|')([^>]*)>/gi, (m, before, q1, href, q2, after) => {
+  html = html.replace(/<a\s+([^>]*?)href=("|')([^"']+)("|')([^>]*)>/gi, (m, before, q1, href, q2, after) => {
       try {
         // leave external and anchor-only links unchanged
         if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:') || href.startsWith('#')) return m;
@@ -207,6 +207,23 @@ app.get('/readme', (req, res) => {
       return m;
     });
 
+    // Rewrite image src attributes so images referenced relatively in READMEs are served through
+    // the /readme/resource endpoint which will fetch files from the repository for the active container.
+    // This handles image links like ./docs/images/info-model.svg or docs/images/...
+    html = html.replace(/<img\s+([^>]*?)src=("|')([^"']+)("|')([^>]*)>/gi, (m, before, q1, src, q2, after) => {
+      try {
+        // leave external/data URIs alone
+        if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('//')) return m;
+        // normalize relative paths (preserve the raw path for the resource endpoint)
+        const clean = src.replace(/^\.\/+/,'').replace(/^\//,'');
+        // construct resource URL pointing back to this server
+        const resourceUrl = `/readme/resource?container=${encodeURIComponent(container)}&path=${encodeURIComponent(clean)}`;
+        return `<img ${before}src="${resourceUrl}" ${after}>`;
+      } catch (e) {
+        return m;
+      }
+    });
+
     // lightweight markdown styling (github-like) with stronger color/background defaults
     const mdStyles = `
       :root{--bg:#fff;--muted:#6c757d}
@@ -228,6 +245,33 @@ app.get('/readme', (req, res) => {
     return res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>README - ${container}</title><style>${mdStyles}</style></head><body><a class="back" href="/">← Back</a><hr/><div class="markdown-body">${html}</div></body></html>`);
   } catch (e) {
     res.status(500).send('Failed to render README: ' + e.message);
+  }
+});
+
+// Serve repository resources referenced from READMEs. Query parameters:
+//   container=root|<folder>  and path=<relative/path/inside/container>
+app.get('/readme/resource', (req, res) => {
+  try {
+    const container = req.query.container || 'root';
+    const relPath = req.query.path || '';
+    if (!relPath) return res.status(400).send('path query parameter required');
+    // disallow traversal
+    if (relPath.indexOf('..') >= 0) return res.status(400).send('invalid path');
+    const repoRoot = path.join(__dirname, '..');
+    let fullPath = null;
+    if (container === 'root') {
+      fullPath = path.join(repoRoot, relPath);
+    } else {
+      fullPath = path.join(repoRoot, container, relPath);
+    }
+    // verify the resolved path is inside the repo
+    const normRoot = path.resolve(repoRoot) + path.sep;
+    const normFull = path.resolve(fullPath);
+    if (!normFull.startsWith(normRoot)) return res.status(400).send('invalid path');
+    if (!fs.existsSync(normFull)) return res.status(404).send('resource not found');
+    return res.sendFile(normFull);
+  } catch (e) {
+    return res.status(500).send('failed to serve resource: ' + e.message);
   }
 });
 

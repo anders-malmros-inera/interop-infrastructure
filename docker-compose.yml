@@ -114,6 +114,10 @@ services:
   kong:
     image: kong:3.3
     container_name: interop-kong-1
+    depends_on:
+      - api
+      - java-api
+      - federation
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: "/usr/local/kong/declarative/kong.yml"

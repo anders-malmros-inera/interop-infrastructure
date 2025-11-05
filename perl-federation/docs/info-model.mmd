@@ -1,0 +1,13 @@
+erDiagram
+    MEMBER {
+        UUID id
+        TEXT organizationId
+        TEXT name
+        TEXT status
+        TIMESTAMP createdAt
+    }
+    ORGANIZATION {
+        TEXT id
+        TEXT name
+    }
+    MEMBER ||--o{ ORGANIZATION : belongs_to

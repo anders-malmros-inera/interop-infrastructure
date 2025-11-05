@@ -1,7 +1,7 @@
-# <a id="sec-1-openapi-docker"></a>
-# 1. Serve OpenAPI (service-catalog) with Docker
+﻿# 1. <a id="sec-1-openapi-docker"></a>
+# 2. Serve OpenAPI (service-catalog) with Docker
 
-## Index
+## 2.1. Index
 
 - [1. Serve OpenAPI (service-catalog) with Docker](#sec-1-openapi-docker)
 - [1.1 Files](#sec-1-1-files)
@@ -20,7 +20,7 @@ Files:
 PowerShell: build and run with Docker CLI
 
 ```powershell
-# from this folder (openapi)
+# 3. from this folder (openapi)
 docker build -t interop-openapi:latest .
 docker run --rm -p 8080:80 interop-openapi:latest
 ```
@@ -28,7 +28,7 @@ docker run --rm -p 8080:80 interop-openapi:latest
 Or use docker-compose (recommended for quick runs):
 
 ```powershell
-# from this folder (openapi)
+# 4. from this folder (openapi)
 docker-compose up --build
 ```
 

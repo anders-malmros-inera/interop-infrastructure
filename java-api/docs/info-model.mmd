@@ -1,0 +1,20 @@
+erDiagram
+    API_INSTANCE {
+        UUID id
+        TEXT logicalAddress
+        TEXT interoperabilitySpecificationId
+        TEXT apiStandard
+        TEXT url
+        TEXT status
+        TEXT signature
+    }
+    ORGANIZATION {
+        TEXT id
+        TEXT name
+    }
+    ACCESS_MODEL {
+        TEXT type
+        TEXT metadataUrl
+    }
+    API_INSTANCE ||--o{ ORGANIZATION : belongs_to
+    API_INSTANCE ||--|{ ACCESS_MODEL : has

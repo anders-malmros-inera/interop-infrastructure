@@ -1,4 +1,4 @@
-Migrations
+﻿Migrations
 ==========
 
 This folder should contain idempotent, ordered SQL migrations for the service database.
